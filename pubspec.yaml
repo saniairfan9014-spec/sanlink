@@ -1,0 +1,43 @@
+name: sanlink
+description: "My social and gamified Flutter app"
+
+publish_to: 'none' # Prevent accidental publishing
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & design
+  cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.7        # For SVG icons/images
+  #google_fonts: ^4.0.4       # Custom fonts
+  #animations: ^3.2.0          # Fancy animations
+  #shimmer: ^3.2.0             # Loading shimmer effects
+
+  # State management
+  provider: ^6.0.6
+  flutter_riverpod: ^2.3.6
+  video_player: ^2.11.1
+  image_picker: ^1.2.1
+  share_plus: ^12.0.2
+  supabase_flutter: ^2.12.2
+  intl: ^0.20.2
+  http: ^1.1.0
+  shared_preferences: ^2.2.0
+
+  # Gamification / interactive UI
+  lottie: ^3.3.2     # Lottie animations for rewards / effects
+  percent_indicator: ^4.2.5  # Progress bars / circular indicators
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
