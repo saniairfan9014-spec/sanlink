@@ -7,24 +7,64 @@ class ChatService {
   String? get currentUserId => supabase.auth.currentUser?.id;
 
   // sendChatRequest(String toUserId)
-  Future<void> sendChatRequest(String toUserId) async {
+  Future<String?> sendChatRequest(String toUserId) async {
     final me = currentUserId;
-    if (me == null || me == toUserId) return;
+    if (me == null) return "User not logged in";
+    if (me == toUserId) return "Cannot send request to yourself";
 
+    // 1. Check if they are already friends
+    final isFriend = await areFriends(toUserId);
+    if (isFriend) return "You are already friends";
+
+    // 2. Check if a request already exists in EITHER direction
     final existing = await supabase
         .from('chat_requests')
         .select()
-        .eq('from_user_id', me)
-        .eq('to_user_id', toUserId)
+        .or('and(from_user_id.eq.$me,to_user_id.eq.$toUserId),and(from_user_id.eq.$toUserId,to_user_id.eq.$me)')
+        .order('created_at', ascending: false)
+        .limit(1)
         .maybeSingle();
 
-    if (existing == null) {
-      await supabase.from('chat_requests').insert({
-        'from_user_id': me,
-        'to_user_id': toUserId,
-        'status': 'pending',
-      });
+    if (existing != null) {
+      final status = existing['status'];
+      if (status == 'pending') return "A request is already pending";
+      if (status == 'accepted') return "You are already friends";
+      // If rejected, we allow sending again
     }
+
+    // 3. Create new request
+    await supabase.from('chat_requests').insert({
+      'from_user_id': me,
+      'to_user_id': toUserId,
+      'status': 'pending',
+      'created_at': DateTime.now().toIso8601String(),
+    });
+    
+    return null; // success
+  }
+
+  // Check if two users are already friends
+  Future<bool> areFriends(String otherUserId) async {
+    final me = currentUserId;
+    if (me == null) return false;
+
+    final data = await supabase
+        .from('chat_members')
+        .select('chat_id')
+        .eq('user_id', me);
+    
+    if (data.isEmpty) return false;
+
+    final myChatIds = (data as List).map((m) => m['chat_id']).toList();
+    
+    final common = await supabase
+        .from('chat_members')
+        .select('chat_id')
+        .eq('user_id', otherUserId)
+        .filter('chat_id', 'in', myChatIds)
+        .maybeSingle();
+        
+    return common != null;
   }
 
   // getIncomingRequests()
@@ -32,10 +72,10 @@ class ChatService {
     final me = currentUserId;
     if (me == null) return [];
     
-    // Select from chat_requests and join with users to get sender details
+    // ✅ FIX: Using user's confirmed join syntax for from_user
     final data = await supabase
         .from('chat_requests')
-        .select('*, users!chat_requests_from_user_id_fkey(*)')
+        .select('*, from_user:from_user_id(id, name, email)')
         .eq('to_user_id', me)
         .eq('status', 'pending');
         
@@ -47,18 +87,51 @@ class ChatService {
     final me = currentUserId;
     if (me == null) return;
     
-    // Insert into chat_rooms returning id
-    final roomData = await supabase.from('chat_rooms').insert({}).select().single();
-    final roomId = roomData['id'];
+    String? roomId;
 
-    // Insert 2 rows into chat_members
-    await supabase.from('chat_members').insert([
-      {'chat_id': roomId, 'user_id': me},
-      {'chat_id': roomId, 'user_id': fromUserId},
-    ]);
+    // 1. Check if a chat room already exists between these two
+    final existingChatId = await getCommonChatId(me, fromUserId);
+    
+    if (existingChatId != null) {
+      roomId = existingChatId;
+      // Just update the request status
+      await supabase.from('chat_requests').update({'status': 'accepted'}).eq('id', requestId);
+    } else {
+      // 2. Create new room if doesn't exist
+      final roomData = await supabase.from('chat_rooms').insert({
+        'is_private': true, 
+      }).select().single();
+      roomId = roomData['id'];
 
-    // Update request status
-    await supabase.from('chat_requests').update({'status': 'accepted'}).eq('id', requestId);
+      await supabase.from('chat_members').insert([
+        {'chat_id': roomId, 'user_id': me},
+        {'chat_id': roomId, 'user_id': fromUserId},
+      ]);
+
+      // 3. Update request status
+      await supabase.from('chat_requests').update({'status': 'accepted'}).eq('id', requestId);
+    }
+
+    // 4. Send a system message to announce the connection
+    if (roomId != null) {
+      await sendSystemMessage(roomId, "You are now connected! Say hi 👋");
+    }
+  }
+
+  Future<String?> getCommonChatId(String user1, String user2) async {
+    final u1Chats = await supabase.from('chat_members').select('chat_id').eq('user_id', user1);
+    final u1Ids = (u1Chats as List).map((m) => m['chat_id']).toList();
+    
+    if (u1Ids.isEmpty) return null;
+
+    final common = await supabase
+        .from('chat_members')
+        .select('chat_id')
+        .eq('user_id', user2)
+        .filter('chat_id', 'in', u1Ids)
+        .maybeSingle();
+        
+    return common?['chat_id'];
   }
 
   // rejectRequest(String requestId)
@@ -71,39 +144,51 @@ class ChatService {
     final me = currentUserId;
     if (me == null) return [];
 
-    // Get all chat_members rows where user_id = me
-    final myMemberships = await supabase.from('chat_members').select('chat_id').eq('user_id', me);
+    // 1. Get all memberships for me, including the other member's user data
+    // We use a complex join to get the "friend" in one go if possible, 
+    // but standard Supabase JS style join is simpler here.
+    final myMemberships = await supabase
+        .from('chat_members')
+        .select('chat_id')
+        .eq('user_id', me);
+    
+    if (myMemberships.isEmpty) return [];
+    
+    final chatIds = (myMemberships as List).map((m) => m['chat_id']).toList();
+
+    // 2. Get all other members for these chats
+    final others = await supabase
+        .from('chat_members')
+        .select('chat_id, user_id, users(*)')
+        .filter('chat_id', 'in', chatIds)
+        .neq('user_id', me);
     
     List<Map<String, dynamic>> chats = [];
-    
-    for (var membership in myMemberships) {
-      final chatId = membership['chat_id'];
+    Set<String> processedFriends = {};
+
+    for (var member in others) {
+      final chatId = member['chat_id'];
+      final friend = member['users'];
+      final friendId = member['user_id'];
+
+      // Prevent duplicate friend entries
+      if (processedFriends.contains(friendId)) continue;
+      processedFriends.add(friendId);
       
-      // Get the *other* member
-      final otherMemberData = await supabase
-          .from('chat_members')
-          .select('user_id, users(*)')
+      // 3. Get last message for this room
+      final lastMsgData = await supabase
+          .from('messages')
+          .select()
           .eq('chat_id', chatId)
-          .neq('user_id', me)
+          .order('created_at', ascending: false)
+          .limit(1)
           .maybeSingle();
           
-      if (otherMemberData != null) {
-        final friend = otherMemberData['users'];
-        
-        // Get last message
-        final messages = await supabase
-            .from('messages')
-            .select()
-            .eq('chat_id', chatId)
-            .order('created_at', ascending: false)
-            .limit(1);
-            
-        chats.add({
-          'chat_id': chatId,
-          'friend': friend,
-          'last_message': messages.isNotEmpty ? messages.first : null,
-        });
-      }
+      chats.add({
+        'chat_id': chatId,
+        'friend': friend,
+        'last_message': lastMsgData,
+      });
     }
     
     return chats;
@@ -126,9 +211,35 @@ class ChatService {
     
     await supabase.from('messages').insert({
       'chat_id': chatId,
-      'user_id': me,
-      'content': message.trim(),
+      'sender_id': me, // ✅ DB column is sender_id
+      'message': message.trim(), // ✅ DB column is message
+      'status': 'sent', // default status
+      'created_at': DateTime.now().toIso8601String(),
     });
+  }
+
+  // sendSystemMessage(String chatId, String message)
+  Future<void> sendSystemMessage(String chatId, String message) async {
+    await supabase.from('messages').insert({
+      'chat_id': chatId,
+      'sender_id': null, // Null indicates a system message
+      'message': message.trim(),
+      'status': 'sent',
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  // markAsRead(String chatId)
+  Future<void> markAsRead(String chatId) async {
+    final me = currentUserId;
+    if (me == null) return;
+
+    await supabase
+        .from('messages')
+        .update({'status': 'read'})
+        .eq('chat_id', chatId)
+        .neq('sender_id', me) // ✅ DB column is sender_id
+        .neq('status', 'read');
   }
 
   // subscribeToMessages(String chatId, Function callback)
@@ -136,7 +247,7 @@ class ChatService {
     return supabase
         .channel('public:messages:chat_id=$chatId')
         .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
+          event: PostgresChangeEvent.all, // Track inserts AND updates (status changes)
           schema: 'public',
           table: 'messages',
           filter: PostgresChangeFilter(
@@ -145,7 +256,11 @@ class ChatService {
             value: chatId,
           ),
           callback: (payload) {
-            callback(payload.newRecord);
+            if (payload.eventType == PostgresChangeEvent.insert) {
+              callback(payload.newRecord);
+            } else if (payload.eventType == PostgresChangeEvent.update) {
+              callback(payload.newRecord); // Send updated record (e.g. read status)
+            }
           },
         )
         .subscribe();

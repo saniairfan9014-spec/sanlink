@@ -4,7 +4,7 @@ import '../../services/supabase_service.dart';
 import '../../services/post_service.dart';
 import 'package:sanlink/widgets/postcard.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sanlink/features/chat/chat_screen.dart';
+import 'package:sanlink/features/chat/screens/chat_list_screen.dart';
 import '../games/games_screen.dart';
 import '../profile/profile_screen.dart';
 import 'dart:typed_data';

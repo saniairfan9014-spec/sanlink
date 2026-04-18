@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sanlink/services/post_service.dart';
+import 'package:sanlink/features/games/services/game_service.dart';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 class _C {
@@ -43,8 +44,13 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen>
   late TextEditingController _nameController;
   late TextEditingController _bioController;
   late TextEditingController _usernameController;
+  final _gameService = GameService();
 
   String? avatarUrl;
+  String? selectedFrameUrl;
+  List<Map<String, dynamic>> _frames = [];
+  int _userLevel = 1;
+  bool _loadingFrames = true;
   bool uploadingAvatar = false;
   bool saving = false;
 
@@ -53,6 +59,26 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen>
   bool _usernameChanged = false;
 
   late AnimationController _rotateAnim;
+
+  Future<void> _loadData() async {
+    try {
+      final results = await Future.wait([
+        postService.getFrames(),
+        _gameService.getUserLevelInfo(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _frames = results[0] as List<Map<String, dynamic>>;
+          _userLevel = (results[1] as LevelInfo).level;
+          _loadingFrames = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading update data: $e");
+      if (mounted) setState(() => _loadingFrames = false);
+    }
+  }
 
   @override
   void initState() {
@@ -67,6 +93,9 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen>
 
     // ✅ FIXED (profile_pic instead of avatar_url)
     avatarUrl = widget.userData['profile_pic'];
+    selectedFrameUrl = widget.userData['profile_frame'];
+
+    _loadData();
 
     _nameController =
         TextEditingController(text: widget.userData['name'] ?? '');
@@ -178,6 +207,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen>
       final updates = {
         'name': _nameController.text.trim(),
         if (avatarUrl != null) 'profile_pic': avatarUrl,
+        'profile_frame': selectedFrameUrl,
       };
 
       debugPrint('📝 Updates (DB-safe): $updates');
@@ -228,18 +258,168 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen>
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            GestureDetector(
-              onTap: _pickAvatar,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage:
-                avatarUrl != null ? NetworkImage(avatarUrl!) : null,
-                child: avatarUrl == null
-                    ? const Icon(Icons.person, size: 40)
-                    : null,
+            Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: _pickAvatar,
+                    child: CircleAvatar(
+                      radius: 54,
+                      backgroundColor: _C.surfaceAlt,
+                      backgroundImage:
+                      avatarUrl != null ? NetworkImage(avatarUrl!) : null,
+                      child: avatarUrl == null
+                          ? const Icon(Icons.person, size: 40, color: _C.textSecondary)
+                          : null,
+                    ),
+                  ),
+                  if (selectedFrameUrl != null)
+                    IgnorePointer(
+                      child: SizedBox(
+                        width: 140,
+                        height: 140,
+                        child: Image.network(
+                          selectedFrameUrl!,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  if (uploadingAvatar)
+                    const CircularProgressIndicator(color: _C.primary),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            const Center(
+              child: Text(
+                "Tap to change avatar",
+                style: TextStyle(color: _C.textMuted, fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            // ── FRAME SELECTION ──
+            const Text(
+              "AVATAR FRAMES",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 100,
+              child: _loadingFrames
+                  ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                  : ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _frames.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    // "No Frame" option
+                    final isActive = selectedFrameUrl == null;
+                    return GestureDetector(
+                      onTap: () => setState(() => selectedFrameUrl = null),
+                      child: Container(
+                        width: 80,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: _C.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isActive ? _C.primary : _C.border,
+                            width: isActive ? 2 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.block, color: _C.textMuted),
+                            const SizedBox(height: 4),
+                            Text("None",
+                                style: TextStyle(
+                                  color: isActive ? _C.primary : _C.textMuted,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                )),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final frame = _frames[index - 1];
+                  final frameUrl = frame['image_url'] as String;
+                  final minLevel = frame['min_level'] as int;
+                  final isLocked = _userLevel < minLevel;
+                  final isActive = selectedFrameUrl == frameUrl;
+
+                  return GestureDetector(
+                    onTap: isLocked
+                        ? () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Unlocks at Level $minLevel")),
+                      );
+                    }
+                        : () => setState(() => selectedFrameUrl = frameUrl),
+                    child: Container(
+                      width: 80,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: _C.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isActive ? _C.primary : _C.border,
+                          width: isActive ? 2 : 1,
+                        ),
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Opacity(
+                            opacity: isLocked ? 0.3 : 1.0,
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Image.network(frameUrl, fit: BoxFit.contain),
+                            ),
+                          ),
+                          if (isLocked)
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.lock_rounded, size: 20, color: _C.gold),
+                                const SizedBox(height: 4),
+                                Text("LVL $minLevel",
+                                    style: const TextStyle(
+                                      color: _C.gold,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                    )),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 30),
+            
+            const Text(
+              "GENERAL INFO",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 12),
 
             TextFormField(
               controller: _nameController,

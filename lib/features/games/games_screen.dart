@@ -4,6 +4,7 @@ import 'tic_tac_toe/tictactoe_category_screen.dart';
 import 'quiz/quiz_category_screen.dart';
 import 'snackgame/snake_category_screen.dart';
 import 'blockgame/brick_game_screen.dart';
+import 'services/game_service.dart';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 class _C {
@@ -46,8 +47,7 @@ class _GameData {
   });
 }
 
-// ─── GamesScreen ──────────────────────────────────────────────────────────────
-class GamesScreen extends StatelessWidget {
+class GamesScreen extends StatefulWidget {
   const GamesScreen({super.key});
 
   static const _games = [
@@ -98,6 +98,32 @@ class GamesScreen extends StatelessWidget {
   static Widget _buildBrick(BuildContext _) => const BrickGameScreen();
   static Widget _buildSnake(BuildContext _) => const SnakeCategoryScreen();
 
+  @override
+  State<GamesScreen> createState() => _GamesScreenState();
+}
+
+class _GamesScreenState extends State<GamesScreen> {
+  final GameService _gameService = GameService();
+  LevelInfo? _levelInfo;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLevelInfo();
+  }
+
+  Future<void> _loadLevelInfo() async {
+    final info = await _gameService.getUserLevelInfo();
+    if (mounted) {
+      setState(() {
+        _levelInfo = info;
+        _isLoading = false;
+      });
+    }
+  }
+
+
   void _navigate(BuildContext context, _GameData game) {
     HapticFeedback.mediumImpact();
     Navigator.push(
@@ -128,7 +154,12 @@ class GamesScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const _Header(),
-            const _XPStatusSection(),
+            _isLoading 
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator(color: _C.primary)),
+                  )
+                : _XPStatusSection(levelInfo: _levelInfo!),
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -152,11 +183,11 @@ class GamesScreen extends StatelessWidget {
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
-                itemCount: _games.length,
+                itemCount: GamesScreen._games.length,
                 itemBuilder: (context, index) => _PremiumGameCard(
                   index: index,
-                  game: _games[index],
-                  onTap: () => _navigate(context, _games[index]),
+                  game: GamesScreen._games[index],
+                  onTap: () => _navigate(context, GamesScreen._games[index]),
                 ),
               ),
             ),
@@ -214,7 +245,8 @@ class _Header extends StatelessWidget {
 
 // ─── XP Status Section ────────────────────────────────────────────────────────
 class _XPStatusSection extends StatelessWidget {
-  const _XPStatusSection();
+  final LevelInfo levelInfo;
+  const _XPStatusSection({required this.levelInfo});
 
   @override
   Widget build(BuildContext context) {
@@ -257,16 +289,16 @@ class _XPStatusSection extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
+                        const Text(
                           "PRO GAMER",
                           style: TextStyle(color: _C.primary, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1),
                         ),
                         Text(
-                          "LEVEL 12",
-                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+                          "LEVEL ${levelInfo.level}",
+                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
                         ),
                       ],
                     ),
@@ -274,16 +306,16 @@ class _XPStatusSection extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: 0.65,
+                        value: levelInfo.progress,
                         minHeight: 8,
                         backgroundColor: _C.bg,
                         valueColor: const AlwaysStoppedAnimation<Color>(_C.primary),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      "650 / 1000 XP to Level 13",
-                      style: TextStyle(color: _C.textSecondary, fontSize: 12),
+                    Text(
+                      "${levelInfo.currentXp} / ${levelInfo.nextLevelXp} XP to Level ${levelInfo.level + 1}",
+                      style: const TextStyle(color: _C.textSecondary, fontSize: 12),
                     ),
                   ],
                 ),

@@ -4,8 +4,15 @@ import '../../services/supabase_service.dart';
 class AuthService {
   final supabase = SupabaseService().client;
 
+  // Getter for current user
+  User? get currentUser => supabase.auth.currentUser;
+
   // ✅ Signup with name
-  Future<String?> signUp(String email, String password, String name) async {
+  Future<String?> signUp({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
     try {
       final result = await supabase.auth.signUp(
         email: email,
@@ -13,10 +20,10 @@ class AuthService {
       );
 
       final user = result.user;
-      if (user == null) return "Signup failed";
+      if (user == null) return "Signup failed. Please try again.";
 
       // Insert into 'users' table
-      await supabase.from('users').insert({
+      await supabase.from('users').upsert({
         'id': user.id,
         'email': user.email,
         'name': name,
@@ -24,8 +31,10 @@ class AuthService {
       });
 
       return null; // success
+    } on AuthException catch (e) {
+      return e.message;
     } catch (e) {
-      return e.toString();
+      return "An unexpected error occurred: ${e.toString()}";
     }
   }
 
@@ -40,8 +49,10 @@ class AuthService {
       if (result.user == null) return "Invalid email or password";
 
       return null; // success
+    } on AuthException catch (e) {
+      return e.message;
     } catch (e) {
-      return e.toString();
+      return "An unexpected error occurred: ${e.toString()}";
     }
   }
 

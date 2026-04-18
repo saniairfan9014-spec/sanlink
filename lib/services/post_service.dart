@@ -237,7 +237,7 @@ class PostService {
 
     try {
       await supabase.from('users').update({
-        'avatar_url': avatarUrl,
+        'profile_pic': avatarUrl,
       }).eq('id', user.id);
       log("Profile picture updated ✅");
     } catch (e) {
@@ -245,5 +245,26 @@ class PostService {
     }
   }
 
+  // GET ALL FRAMES
+  Future<List<Map<String, dynamic>>> getFrames() async {
+    try {
+      final res = await supabase.from('frames').select().order('min_level', ascending: true);
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      log("Error fetching frames ❌: $e");
+      return [];
+    }
+  }
 
+  // UPDATE SELECTED FRAME
+  Future<void> updateSelectedFrame(String frameUrl) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return log("User not logged in");
+    try {
+      await supabase.from('users').update({'profile_frame': frameUrl}).eq('id', user.id);
+      log("Profile frame updated ✅");
+    } catch (e) {
+      log("Error updating profile frame ❌: $e");
+    }
+  }
 }

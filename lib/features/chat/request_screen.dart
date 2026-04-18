@@ -1,9 +1,21 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../../services/supabase_service.dart';
+import 'package:flutter/services.dart';
+import 'package:sanlink/features/chat/services/chat_service.dart';
 
-// ─── DEBUG LOGGER ─────────────────────────────────────────────
-void _log(String tag, String msg) {
-  debugPrint("[$tag] $msg");
+class _C {
+  static const bg = Color(0xFF0A0A0F);
+  static const surface = Color(0xFF13131A);
+  static const surfaceAlt = Color(0xFF1C1C27);
+  static const border = Color(0xFF2A2A3D);
+  static const primary = Color(0xFF7C5CFC);
+  static const primaryGlow = Color(0x337C5CFC);
+  static const accent = Color(0xFF00E5FF);
+  static const textPrimary = Color(0xFFF0F0FF);
+  static const textSecondary = Color(0xFF8888AA);
+  static const textMuted = Color(0xFF44445A);
+  static const green = Color(0xFF00E676);
+  static const red = Color(0xFFFF4757);
 }
 
 class RequestsScreen extends StatefulWidget {
@@ -14,173 +26,148 @@ class RequestsScreen extends StatefulWidget {
 }
 
 class _RequestsScreenState extends State<RequestsScreen> {
-  final supabase = SupabaseService().client;
-
+  final ChatService chatService = ChatService();
   List<Map<String, dynamic>> requests = [];
   bool loading = true;
 
   @override
   void initState() {
     super.initState();
-    _log("REQUESTS", "Screen initState");
     fetchRequests();
   }
 
   Future<void> fetchRequests() async {
-    _log("REQUESTS", "Fetching requests...");
-
-    setState(() => loading = true);
-
-    final currentUserId = supabase.auth.currentUser?.id;
-
-    if (currentUserId == null) {
-      _log("REQUESTS", "ERROR: currentUserId is null");
-      setState(() => loading = false);
-      return;
-    }
-
+    if (mounted) setState(() => loading = true);
     try {
-      final response = await supabase
-          .from('chat_requests')
-          .select('*, from_user:users(id,name,email)')
-          .eq('to_user_id', currentUserId)
-          .eq('status', 'pending');
-
-      requests = List<Map<String, dynamic>>.from(response);
-
-      _log("REQUESTS", "Loaded ${requests.length} requests");
-
-      setState(() => loading = false);
-    } catch (e) {
-      _log("REQUESTS", "ERROR fetching requests: $e");
-      setState(() => loading = false);
-    }
-  }
-
-  Future<void> acceptRequest(Map<String, dynamic> request) async {
-    _log("REQUESTS", "Accept clicked → requestId=${request['id']}");
-
-    final currentUserId = supabase.auth.currentUser?.id;
-
-    if (currentUserId == null) {
-      _log("REQUESTS", "ERROR: user not logged in");
-      return;
-    }
-
-    final fromUserId = request['from_user_id'];
-
-    try {
-      // 1. Create chat room
-      _log("REQUESTS", "Creating chat room...");
-      final chatRoom = await supabase
-          .from('chat_rooms')
-          .insert({})
-          .select()
-          .single();
-
-      final chatId = chatRoom['id'];
-      _log("REQUESTS", "Chat room created → chatId=$chatId");
-
-      // 2. Add members
-      _log("REQUESTS", "Adding chat members...");
-      await supabase.from('chat_members').insert([
-        {'chat_id': chatId, 'user_id': currentUserId},
-        {'chat_id': chatId, 'user_id': fromUserId},
-      ]);
-
-      _log("REQUESTS", "Members added successfully");
-
-      // 3. Update request status
-      _log("REQUESTS", "Updating request status → accepted");
-      await supabase
-          .from('chat_requests')
-          .update({'status': 'accepted'})
-          .eq('id', request['id']);
-
-      _log("REQUESTS", "Request marked as accepted");
-
+      final reqs = await chatService.getIncomingRequests();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "You are now friends with ${request['from_user']['name']}!",
-            ),
-          ),
-        );
+        setState(() {
+          requests = reqs;
+          loading = false;
+        });
       }
-
-      fetchRequests(); // refresh
     } catch (e) {
-      _log("REQUESTS", "ERROR accepting request: $e");
+      if (mounted) setState(() => loading = false);
     }
   }
 
-  Future<void> rejectRequest(Map<String, dynamic> request) async {
-    _log("REQUESTS", "Reject clicked → requestId=${request['id']}");
-
-    try {
-      await supabase
-          .from('chat_requests')
-          .update({'status': 'rejected'})
-          .eq('id', request['id']);
-
-      _log("REQUESTS", "Request rejected successfully");
-
-      fetchRequests();
-    } catch (e) {
-      _log("REQUESTS", "ERROR rejecting request: $e");
+  Future<void> _handleAccept(String requestId, String fromUserId, String name) async {
+    HapticFeedback.mediumImpact();
+    await chatService.acceptRequest(requestId, fromUserId);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Now friends with $name!"),
+          backgroundColor: _C.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
+    fetchRequests();
+  }
+
+  Future<void> _handleReject(String requestId) async {
+    HapticFeedback.lightImpact();
+    await chatService.rejectRequest(requestId);
+    fetchRequests();
   }
 
   @override
   Widget build(BuildContext context) {
-    _log("REQUESTS", "build called → loading=$loading");
-
-    if (loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (requests.isEmpty) {
-      return const Scaffold(
-        body: Center(child: Text("No pending requests")),
-      );
-    }
-
     return Scaffold(
+      backgroundColor: _C.bg,
       appBar: AppBar(
-        title: const Text("Friend Requests"),
+        backgroundColor: _C.surface,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _C.textPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          "Friend Requests",
+          style: TextStyle(color: _C.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+        ),
       ),
-      body: ListView.builder(
-        itemCount: requests.length,
-        itemBuilder: (context, index) {
-          final request = requests[index];
-          final fromUser = request['from_user'];
-
-          return ListTile(
-            leading: CircleAvatar(
-              child: Text(
-                (fromUser['name'] ?? 'U')[0].toUpperCase(),
+      body: Stack(
+        children: [
+          // Background Glow
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: _C.primary.withOpacity(0.1), blurRadius: 100, spreadRadius: 20),
+                ],
               ),
             ),
-            title: Text(fromUser['name'] ?? 'No Name'),
-            subtitle: Text(fromUser['email'] ?? ''),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.check, color: Colors.green),
-                  onPressed: () => acceptRequest(request),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.red),
-                  onPressed: () => rejectRequest(request),
-                ),
-              ],
-            ),
-          );
-        },
+          ),
+          
+          loading
+              ? const Center(child: CircularProgressIndicator(color: _C.primary))
+              : requests.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_add_disabled_outlined, size: 64, color: _C.border),
+                          const SizedBox(height: 16),
+                          const Text("No pending requests", style: TextStyle(color: _C.textSecondary)),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      itemCount: requests.length,
+                      itemBuilder: (context, index) {
+                        final req = requests[index];
+                        final sender = req['users'];
+                        final senderName = sender['name'] ?? 'Unknown User';
+                        final senderInitial = senderName.isNotEmpty ? senderName[0].toUpperCase() : '?';
+                        
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: _C.surface.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: _C.border.withOpacity(0.5)),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                leading: CircleAvatar(
+                                  backgroundColor: _C.surfaceAlt,
+                                  child: Text(senderInitial, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
+                                ),
+                                title: Text(senderName, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
+                                subtitle: Text(sender['email'] ?? '', style: const TextStyle(color: _C.textSecondary, fontSize: 12)),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.close, color: _C.red, size: 22),
+                                      onPressed: () => _handleReject(req['id']),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      icon: const Icon(Icons.check, color: _C.green, size: 22),
+                                      onPressed: () => _handleAccept(req['id'], sender['id'], senderName),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+        ],
       ),
     );
   }

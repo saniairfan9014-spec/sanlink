@@ -69,17 +69,27 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
       _pendingRequests.add(userId);
     });
     
-    await chatService.sendChatRequest(userId);
+    final error = await chatService.sendChatRequest(userId);
     
-    // Optimistic UI, but show feedback
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Chat request sent!'),
-          backgroundColor: _C.primary,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (error != null) {
+        setState(() => _pendingRequests.remove(userId));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Chat request sent!'),
+            backgroundColor: _C.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 

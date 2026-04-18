@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'game_logic.dart';
+import '../services/game_service.dart';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const _bg = Color(0xFF0A0A0F);
@@ -26,6 +27,7 @@ class TicTacToeScreen extends StatefulWidget {
 }
 
 class _TicTacToeScreenState extends State<TicTacToeScreen> with TickerProviderStateMixin {
+  final GameService _gameService = GameService();
   // ─── Game State ────────────────────────────────────────────────────────────
   List<String> board = List.filled(9, '');
   String winner = '';
@@ -115,6 +117,12 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> with TickerProviderSt
         winner = w;
         winLine = GameLogic.winningPattern(board);
       });
+      
+      // LOG GAME RESULT
+      if (mode == 'pvai') {
+        _gameService.addGameResult('tictactoe', w == 'X');
+      }
+
       if (w == 'Draw') {
         _shakeController.forward(from: 0);
       } else {

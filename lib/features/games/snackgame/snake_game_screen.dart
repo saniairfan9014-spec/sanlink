@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../services/game_service.dart';
 
 class SnakeGameScreen extends StatefulWidget {
   final int difficultySpeed;
@@ -17,6 +18,7 @@ class SnakeGameScreen extends StatefulWidget {
 }
 
 class _SnakeGameScreenState extends State<SnakeGameScreen> {
+  final GameService _gameService = GameService();
   static const int rowCount = 20;
   static const int colCount = 20;
 
@@ -71,6 +73,11 @@ class _SnakeGameScreenState extends State<SnakeGameScreen> {
         snake.contains(newHead)) {
       timer?.cancel();
       isPlaying = false;
+      
+      // LOG GAME RESULT
+      final isWin = score >= 15;
+      _gameService.addGameResult('snake', isWin);
+      
       showGameOverDialog();
       return;
     }

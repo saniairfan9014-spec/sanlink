@@ -225,11 +225,25 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                               child: Text(friendInitial, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
                             ),
                             title: Text(friendName, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
-                            subtitle: Text(
-                              lastMessage != null ? lastMessage['content'] : 'Started a chat',
-                              style: const TextStyle(color: _C.textSecondary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            subtitle: Row(
+                              children: [
+                                if (lastMessage != null && lastMessage['sender_id'] == chatService.currentUserId) ...[
+                                  _StatusIcon(status: lastMessage['status'] ?? 'sent'),
+                                  const SizedBox(width: 4),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    lastMessage != null ? lastMessage['message'] : 'Started a chat',
+                                    style: TextStyle(
+                                      color: lastMessage?['sender_id'] == null ? _C.accent : _C.textSecondary,
+                                      fontStyle: lastMessage?['sender_id'] == null ? FontStyle.italic : FontStyle.normal,
+                                      fontSize: 13,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           );
                         },
@@ -295,5 +309,21 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
         ],
       ),
     );
+  }
+}
+
+class _StatusIcon extends StatelessWidget {
+  final String status;
+  const _StatusIcon({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    if (status == 'read') {
+      return const Icon(Icons.done_all_rounded, color: _C.accent, size: 14);
+    } else if (status == 'delivered') {
+      return const Icon(Icons.done_all_rounded, color: _C.textSecondary, size: 14);
+    } else {
+      return const Icon(Icons.check_rounded, color: _C.textSecondary, size: 14);
+    }
   }
 }

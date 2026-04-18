@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'quiz_data.dart';
 import 'quiz_model.dart';
+import '../services/game_service.dart';
 
 class QuizScreen extends StatefulWidget {
   final String selectedCategory;
@@ -13,6 +14,7 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen>
     with SingleTickerProviderStateMixin {
+  final GameService _gameService = GameService();
   late List<Question> questions;
   int currentIndex = 0;
   int score = 0;
@@ -101,6 +103,10 @@ class _QuizScreenState extends State<QuizScreen>
   }
 
   void _showResult() {
+    // LOG GAME RESULT
+    final isWin = score / questions.length >= 0.7;
+    _gameService.addGameResult('quiz', isWin);
+
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(

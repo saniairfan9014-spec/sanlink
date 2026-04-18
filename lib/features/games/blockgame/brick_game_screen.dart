@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/game_service.dart';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const int _kCols = 7;
@@ -60,6 +61,7 @@ class BrickGameScreen extends StatefulWidget {
 
 class _BrickGameScreenState extends State<BrickGameScreen>
     with TickerProviderStateMixin {
+  final GameService _gameService = GameService();
   // layout (set after first layout)
   double _sw = 0, _sh = 0;
 
@@ -251,6 +253,7 @@ class _BrickGameScreenState extends State<BrickGameScreen>
       if (_lives <= 0) {
         _timer?.cancel();
         _state = _State.lost;
+        _gameService.addGameResult('brickbreaker', false);
       } else {
         _resetBall();
         _state = _State.idle;
@@ -263,6 +266,7 @@ class _BrickGameScreenState extends State<BrickGameScreen>
     if (_bricks.every((b) => !b.alive)) {
       _timer?.cancel();
       _state = _State.won;
+      _gameService.addGameResult('brickbreaker', true);
       HapticFeedback.heavyImpact();
     }
   }
