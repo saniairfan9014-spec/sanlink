@@ -122,25 +122,32 @@ class _HomeScreenState extends State<HomeScreen>
     if (pickedFile == null) return;
 
     try {
+      final fileName = pickedFile.name.toLowerCase();
+      final isVideo = fileName.endsWith('.mp4') ||
+          fileName.endsWith('.mov') ||
+          fileName.endsWith('.avi') ||
+          fileName.endsWith('.webm') ||
+          fileName.endsWith('.mkv');
+
+      final contentType = isVideo ? 'video/mp4' : 'image/jpeg';
+
       String? mediaUrl;
       if (kIsWeb) {
         final bytes = await pickedFile.readAsBytes();
         mediaUrl = await postService.uploadMedia(
           fileBytes: bytes,
           fileName: pickedFile.name,
+          contentType: contentType,
         );
       } else {
         mediaUrl = await postService.uploadMedia(
           filePath: pickedFile.path,
           fileName: pickedFile.name,
+          contentType: contentType,
         );
       }
 
       if (mediaUrl == null) return;
-
-      final isVideo = pickedFile.path.endsWith('.mp4') ||
-          pickedFile.path.endsWith('.mov') ||
-          pickedFile.path.endsWith('.avi');
 
       await postService.createPostWithMedia(
         content: controller.text.trim(),

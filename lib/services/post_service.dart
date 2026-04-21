@@ -53,6 +53,7 @@ class PostService {
     String? filePath,
     Uint8List? fileBytes,
     required String fileName,
+    String? contentType,
   }) async {
     final user = supabase.auth.currentUser;
     if (user == null) return log("User not logged in") as String?;
@@ -65,11 +66,19 @@ class PostService {
 
       if (kIsWeb) {
         if (fileBytes == null) return log("fileBytes is null ❌") as String?;
-        await supabase.storage.from('post-media').uploadBinary(newFileName, fileBytes);
+        await supabase.storage.from('post-media').uploadBinary(
+          newFileName,
+          fileBytes,
+          fileOptions: FileOptions(contentType: contentType),
+        );
       } else {
         if (filePath == null) return log("filePath is null ❌") as String?;
         final file = File(filePath);
-        await supabase.storage.from('post-media').upload(newFileName, file);
+        await supabase.storage.from('post-media').upload(
+          newFileName,
+          file,
+          fileOptions: FileOptions(contentType: contentType),
+        );
       }
 
       final publicUrl = supabase.storage.from('post-media').getPublicUrl(newFileName);
@@ -87,7 +96,7 @@ class PostService {
     try {
       final data = await supabase
           .from('posts')
-          .select('*, users(name, avatar_url)')
+          .select('*, users(name, avatar_url, profile_pic)')
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
@@ -131,7 +140,7 @@ class PostService {
   Future<List<Map<String, dynamic>>> getComments(String postId) async {
     final data = await supabase
         .from('comments')
-        .select('*, users(name, avatar_url)')
+        .select('*, users(name, avatar_url, profile_pic)')
         .eq('post_id', postId)
         .order('created_at', ascending: true);
     return List<Map<String, dynamic>>.from(data);
@@ -184,7 +193,7 @@ class PostService {
     try {
       final data = await supabase
           .from('posts')
-          .select('*, users(name, avatar_url)') // include user data
+          .select('*, users(name, avatar_url, profile_pic)') // include user data
           .eq('user_id', userId)
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(data);
@@ -238,6 +247,7 @@ class PostService {
     try {
       await supabase.from('users').update({
         'profile_pic': avatarUrl,
+        'avatar_url': avatarUrl, // Update both for consistency
       }).eq('id', user.id);
       log("Profile picture updated ✅");
     } catch (e) {

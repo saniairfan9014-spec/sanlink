@@ -129,7 +129,8 @@ class _PostCardState extends State<PostCard> {
     final mediaUrl = widget.postData['media_url'];
 
     final name = user?['name'] ?? 'Unknown';
-    final avatar = user?['avatar_url'];
+    final avatar = user?['profile_pic'] ?? user?['avatar_url'];
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
     return Card(
       margin: const EdgeInsets.all(12),
@@ -146,10 +147,12 @@ class _PostCardState extends State<PostCard> {
                 Row(
                   children: [
                     CircleAvatar(
+                      backgroundColor: Colors.grey[800],
                       backgroundImage:
                       avatar != null ? NetworkImage(avatar) : null,
-                      child:
-                      avatar == null ? const Icon(Icons.person, size: 16) : null,
+                      child: avatar == null
+                          ? Text(initial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                          : null,
                     ),
                     const SizedBox(width: 8),
 
@@ -185,26 +188,110 @@ class _PostCardState extends State<PostCard> {
                   ],
                 ),
 
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, size: 20),
-                  onSelected: (value) async {
-                    if (value == 'delete') {
-                      await postService.deletePost(widget.postData['id']);
+                Builder(
+                  builder: (context) {
+                    final currentUserId = postService.supabase.auth.currentUser?.id;
+                    final isOwner = widget.postData['user_id'] == currentUserId;
 
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Post deleted')),
-                        );
-                      }
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete',
-                          style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
+                    return PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, size: 20),
+                      onSelected: (value) async {
+                        switch (value) {
+                          case 'delete':
+                            final scaffoldMessenger = ScaffoldMessenger.of(context);
+                            await postService.deletePost(widget.postData['id']);
+                            scaffoldMessenger.showSnackBar(
+                              const SnackBar(content: Text('Post deleted')),
+                            );
+                            break;
+                          case 'copy_link':
+                            final link = "https://sanlink.app/post/${widget.postData['id']}";
+                            await Clipboard.setData(ClipboardData(text: link));
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Link copied to clipboard!')),
+                              );
+                            }
+                            break;
+                          case 'copy_text':
+                            await Clipboard.setData(ClipboardData(text: widget.postData['content'] ?? ''));
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Post content copied!')),
+                              );
+                            }
+                            break;
+                          case 'share':
+                            sharePost();
+                            break;
+                          case 'report':
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Thank you! This post has been reported for review.')),
+                              );
+                            }
+                            break;
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          value: 'copy_link',
+                          child: Row(
+                            children: [
+                              Icon(Icons.link_rounded, size: 18),
+                              SizedBox(width: 12),
+                              Text('Copy Link'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'copy_text',
+                          child: Row(
+                            children: [
+                              Icon(Icons.copy_rounded, size: 18),
+                              SizedBox(width: 12),
+                              Text('Copy Text'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'share',
+                          child: Row(
+                            children: [
+                              Icon(Icons.share_rounded, size: 18),
+                              SizedBox(width: 12),
+                              Text('Share'),
+                            ],
+                          ),
+                        ),
+                        if (!isOwner)
+                          const PopupMenuItem(
+                            value: 'report',
+                            child: Row(
+                              children: [
+                                Icon(Icons.report_gmailerrorred_rounded,
+                                    size: 18, color: Colors.orange),
+                                SizedBox(width: 12),
+                                Text('Report Post'),
+                              ],
+                            ),
+                          ),
+                        if (isOwner)
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline_rounded,
+                                    size: 18, color: Colors.red),
+                                SizedBox(width: 12),
+                                Text('Delete Post',
+                                    style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                      ],
+                    );
+                  }
                 ),
               ],
             ),

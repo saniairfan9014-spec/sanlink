@@ -75,7 +75,7 @@ class ChatService {
     // ✅ FIX: Using user's confirmed join syntax for from_user
     final data = await supabase
         .from('chat_requests')
-        .select('*, from_user:from_user_id(id, name, email)')
+        .select('*, from_user:from_user_id(id, name, email, avatar_url, profile_pic)')
         .eq('to_user_id', me)
         .eq('status', 'pending');
         
@@ -83,9 +83,9 @@ class ChatService {
   }
 
   // acceptRequest(String requestId, String fromUserId)
-  Future<void> acceptRequest(String requestId, String fromUserId) async {
+  Future<String?> acceptRequest(String requestId, String fromUserId) async {
     final me = currentUserId;
-    if (me == null) return;
+    if (me == null) return null;
     
     String? roomId;
 
@@ -116,6 +116,8 @@ class ChatService {
     if (roomId != null) {
       await sendSystemMessage(roomId, "You are now connected! Say hi 👋");
     }
+
+    return roomId;
   }
 
   Future<String?> getCommonChatId(String user1, String user2) async {
@@ -299,7 +301,7 @@ class ChatService {
     
     final data = await supabase
         .from('users')
-        .select()
+        .select('id, name, email, avatar_url, profile_pic')
         .ilike('name', '%${query.trim()}%')
         .neq('id', me)
         .limit(20);

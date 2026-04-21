@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sanlink/features/chat/services/chat_service.dart';
+import 'package:sanlink/features/chat/screens/direct_chat_screen.dart';
 
 class _C {
   static const bg = Color(0xFF0A0A0F);
@@ -53,17 +54,23 @@ class _RequestsScreenState extends State<RequestsScreen> {
 
   Future<void> _handleAccept(String requestId, String fromUserId, String name) async {
     HapticFeedback.mediumImpact();
-    await chatService.acceptRequest(requestId, fromUserId);
+    final chatId = await chatService.acceptRequest(requestId, fromUserId);
+    
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Now friends with $name!"),
-          backgroundColor: _C.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (chatId != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DirectChatScreen(
+              chatId: chatId,
+              friendName: name,
+            ),
+          ),
+        ).then((_) => fetchRequests());
+      } else {
+        fetchRequests();
+      }
     }
-    fetchRequests();
   }
 
   Future<void> _handleReject(String requestId) async {
@@ -124,8 +131,8 @@ class _RequestsScreenState extends State<RequestsScreen> {
                       itemCount: requests.length,
                       itemBuilder: (context, index) {
                         final req = requests[index];
-                        final sender = req['users'];
-                        final senderName = sender['name'] ?? 'Unknown User';
+                        final sender = req['from_user'];
+                        final senderName = sender != null ? (sender['name'] ?? 'Unknown User') : 'Unknown User';
                         final senderInitial = senderName.isNotEmpty ? senderName[0].toUpperCase() : '?';
                         
                         return Container(
@@ -150,14 +157,56 @@ class _RequestsScreenState extends State<RequestsScreen> {
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.close, color: _C.red, size: 22),
-                                      onPressed: () => _handleReject(req['id']),
+                                    // REJECT BUTTON
+                                    GestureDetector(
+                                      onTap: () => _handleReject(req['id']),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: _C.surfaceAlt,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: _C.red.withOpacity(0.3)),
+                                        ),
+                                        child: const Icon(Icons.close_rounded, color: _C.red, size: 18),
+                                      ),
                                     ),
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                      icon: const Icon(Icons.check, color: _C.green, size: 22),
-                                      onPressed: () => _handleAccept(req['id'], sender['id'], senderName),
+                                    const SizedBox(width: 10),
+                                    // ACCEPT BUTTON
+                                    GestureDetector(
+                                      onTap: () => _handleAccept(req['id'], sender?['id'] ?? '', senderName),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [_C.primary, Color(0xFF9B7BFF)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(10),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: _C.primary.withOpacity(0.4),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: const Row(
+                                          children: [
+                                            Icon(Icons.check_rounded, color: Colors.white, size: 16),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              "Accept",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),

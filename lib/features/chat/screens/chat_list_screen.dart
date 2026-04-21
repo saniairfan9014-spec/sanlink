@@ -85,19 +85,25 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
     }
   }
 
-  Future<void> _acceptRequest(String requestId, String fromUserId) async {
+  Future<void> _acceptRequest(String requestId, String fromUserId, String name) async {
     HapticFeedback.lightImpact();
-    await chatService.acceptRequest(requestId, fromUserId);
+    final chatId = await chatService.acceptRequest(requestId, fromUserId);
+    
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Now friends!'),
-          backgroundColor: _C.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (chatId != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DirectChatScreen(
+              chatId: chatId,
+              friendName: name,
+            ),
+          ),
+        ).then((_) => _loadAll());
+      } else {
+        _loadAll();
+      }
     }
-    _loadAll();
   }
 
   Future<void> _rejectRequest(String requestId) async {
@@ -277,8 +283,8 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                         itemCount: _requests.length,
                         itemBuilder: (context, index) {
                           final req = _requests[index];
-                          final sender = req['users'];
-                          final senderName = sender['name'] ?? 'Unknown User';
+                          final sender = req['from_user'];
+                          final senderName = sender != null ? (sender['name'] ?? 'Unknown User') : 'Unknown User';
                           final senderInitial = senderName.isNotEmpty ? senderName[0].toUpperCase() : '?';
                           
                           return ListTile(
@@ -292,13 +298,56 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(
-                                  icon: const Icon(Icons.close, color: _C.red),
-                                  onPressed: () => _rejectRequest(req['id']),
+                                // REJECT BUTTON
+                                GestureDetector(
+                                  onTap: () => _rejectRequest(req['id']),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(7),
+                                    decoration: BoxDecoration(
+                                      color: _C.surfaceAlt,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: _C.red.withOpacity(0.3)),
+                                    ),
+                                    child: const Icon(Icons.close_rounded, color: _C.red, size: 16),
+                                  ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.check, color: _C.green),
-                                  onPressed: () => _acceptRequest(req['id'], sender['id']),
+                                const SizedBox(width: 8),
+                                // ACCEPT BUTTON
+                                GestureDetector(
+                                  onTap: () => _acceptRequest(req['id'], sender?['id'] ?? '', senderName),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [_C.primary, Color(0xFF9B7BFF)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: _C.primary.withOpacity(0.35),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.check_rounded, color: Colors.white, size: 14),
+                                        SizedBox(width: 5),
+                                        Text(
+                                          "Accept",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),

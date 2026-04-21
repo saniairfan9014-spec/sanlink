@@ -6,6 +6,8 @@ import 'package:sanlink/services/post_service.dart';
 import 'package:sanlink/widgets/postcard.dart';
 import 'package:sanlink/features/profile/update_profile_screen.dart';
 import 'package:sanlink/features/games/services/game_service.dart';
+import 'package:sanlink/features/chat/services/chat_service.dart';
+import 'package:sanlink/features/chat/screens/direct_chat_screen.dart';
 
 void _log(String tag, String msg) => debugPrint("[$tag] $msg");
 
@@ -38,6 +40,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   final postService = PostService();
+  final chatService = ChatService();
 
   List<Map<String, dynamic>> userPosts = [];
   bool loadingPosts    = true;
@@ -493,7 +496,68 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
                     ),
 
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 20),
+
+                    // ── ACTION BUTTONS (other user's profile) ──
+                    if (!isMe) ...[
+                      Row(
+                        children: [
+                          // Friend / Request button
+                          Expanded(
+                            child: isFriend
+                                ? _ActionBtn(
+                                    onTap: null,
+                                    icon: Icons.check_circle_rounded,
+                                    label: 'Friends ✓',
+                                    filled: false,
+                                  )
+                                : requestSent
+                                    ? _ActionBtn(
+                                        onTap: null,
+                                        icon: Icons.schedule_rounded,
+                                        label: 'Request Sent',
+                                        filled: false,
+                                      )
+                                    : _ActionBtn(
+                                        onTap: sendingRequest ? null : sendRequest,
+                                        icon: Icons.person_add_rounded,
+                                        label: 'Send Request',
+                                        filled: true,
+                                        loading: sendingRequest,
+                                      ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Message button (only if friends)
+                          if (isFriend)
+                            Expanded(
+                              child: _ActionBtn(
+                                onTap: () async {
+                                  final chatId = await chatService.getCommonChatId(
+                                    currentUserId!,
+                                    user['id'],
+                                  );
+                                  if (chatId != null && mounted) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => DirectChatScreen(
+                                          chatId: chatId,
+                                          friendName: name,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: Icons.chat_bubble_rounded,
+                                label: 'Message',
+                                filled: true,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+                    ] else
+                      const SizedBox(height: 30),
                     
                     // ── GAME PERFORMANCE ──
                     _buildGamePerformance(),
