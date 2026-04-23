@@ -185,15 +185,59 @@ class ChatService {
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
+
+      // 4. Get unread count (messages from others that are not 'read')
+      final unreadData = await supabase
+          .from('messages')
+          .select()
+          .eq('chat_id', chatId)
+          .neq('sender_id', me)
+          .neq('status', 'read');
+      final unreadCount = (unreadData as List).length;
           
       chats.add({
         'chat_id': chatId,
         'friend': friend,
         'last_message': lastMsgData,
+        'unread_count': unreadCount,
       });
     }
+
+    // Sort chats by latest message time (most recent first)
+    chats.sort((a, b) {
+      final aTime = a['last_message']?['created_at'] as String?;
+      final bTime = b['last_message']?['created_at'] as String?;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
     
     return chats;
+  }
+
+  // Get total unread message count across all chats
+  Future<int> getTotalUnreadCount() async {
+    final me = currentUserId;
+    if (me == null) return 0;
+
+    final myMemberships = await supabase
+        .from('chat_members')
+        .select('chat_id')
+        .eq('user_id', me);
+    
+    if (myMemberships.isEmpty) return 0;
+    
+    final chatIds = (myMemberships as List).map((m) => m['chat_id']).toList();
+
+    final unreadData = await supabase
+        .from('messages')
+        .select()
+        .filter('chat_id', 'in', chatIds)
+        .neq('sender_id', me)
+        .neq('status', 'read');
+
+    return (unreadData as List).length;
   }
 
   // getMessages(String chatId)

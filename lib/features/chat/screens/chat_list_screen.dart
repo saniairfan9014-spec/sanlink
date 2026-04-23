@@ -211,6 +211,7 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                           final lastMessage = chat['last_message'];
                           final friendName = friend['name'] ?? 'Unknown User';
                           final friendInitial = friendName.isNotEmpty ? friendName[0].toUpperCase() : '?';
+                          final unreadCount = chat['unread_count'] ?? 0;
                           
                           return ListTile(
                             onTap: () {
@@ -223,14 +224,44 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                                     friendName: friendName,
                                   ),
                                 ),
-                              );
+                              ).then((_) => _loadChats());
                             },
                             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            leading: CircleAvatar(
-                              backgroundColor: _C.surfaceAlt,
-                              child: Text(friendInitial, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
+                            leading: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: _C.surfaceAlt,
+                                  child: Text(friendInitial, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
+                                ),
+                                if (unreadCount > 0)
+                                  Positioned(
+                                    right: -4,
+                                    top: -4,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: _C.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                                      child: Center(
+                                        child: Text(
+                                          unreadCount > 99 ? '99+' : '$unreadCount',
+                                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                            title: Text(friendName, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
+                            title: Text(
+                              friendName,
+                              style: TextStyle(
+                                color: _C.textPrimary,
+                                fontWeight: unreadCount > 0 ? FontWeight.w900 : FontWeight.bold,
+                              ),
+                            ),
                             subtitle: Row(
                               children: [
                                 if (lastMessage != null && lastMessage['sender_id'] == chatService.currentUserId) ...[
@@ -241,8 +272,9 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                                   child: Text(
                                     lastMessage != null ? lastMessage['message'] : 'Started a chat',
                                     style: TextStyle(
-                                      color: lastMessage?['sender_id'] == null ? _C.accent : _C.textSecondary,
+                                      color: unreadCount > 0 ? _C.textPrimary : (lastMessage?['sender_id'] == null ? _C.accent : _C.textSecondary),
                                       fontStyle: lastMessage?['sender_id'] == null ? FontStyle.italic : FontStyle.normal,
+                                      fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
                                       fontSize: 13,
                                     ),
                                     maxLines: 1,
@@ -251,6 +283,19 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                                 ),
                               ],
                             ),
+                            trailing: unreadCount > 0
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _C.primary,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      unreadCount > 99 ? '99+' : '$unreadCount',
+                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                  )
+                                : null,
                           );
                         },
                       ),

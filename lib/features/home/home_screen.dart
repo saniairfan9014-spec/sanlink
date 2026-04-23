@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 import 'package:flutter/services.dart';
 import '../../services/supabase_service.dart';
 import '../../services/post_service.dart';
@@ -8,27 +10,18 @@ import 'package:sanlink/features/chat/screens/chat_list_screen.dart';
 import '../games/games_screen.dart';
 import '../profile/profile_screen.dart';
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:sanlink/features/home/notifications_screen.dart';
+import 'package:sanlink/features/games/services/game_service.dart';
+import 'package:sanlink/features/chat/services/chat_service.dart';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
-class AppColors {
-  static const bg = Color(0xFF0A0A0F);
-  static const surface = Color(0xFF13131A);
-  static const surfaceAlt = Color(0xFF1C1C27);
-  static const border = Color(0xFF2A2A3D);
-  static const primary = Color(0xFF7C5CFC); // electric violet
-  static const primaryGlow = Color(0x557C5CFC);
-  static const accent = Color(0xFF00E5FF); // cyan flash
-  static const accentGlow = Color(0x3300E5FF);
-  static const gold = Color(0xFFFFD700);
-  static const textPrimary = Color(0xFFF0F0FF);
-  static const textSecondary = Color(0xFF8888AA);
-  static const textMuted = Color(0xFF44445A);
-}
+
 
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -38,12 +31,17 @@ class _HomeScreenState extends State<HomeScreen>
     with TickerProviderStateMixin {
   final supabase = SupabaseService().client;
   final postService = PostService();
+  final chatService = ChatService();
+  final gameService = GameService();
   final TextEditingController controller = TextEditingController();
 
   List<Map<String, dynamic>> posts = [];
   Map<String, dynamic>? currentUserData;
+  LevelInfo? _levelInfo;
   bool loading = true;
   int _currentIndex = 0;
+  int _totalUnreadCount = 0;
+  Timer? _unreadTimer;
 
   late AnimationController _navGlowController;
   late AnimationController _fabPulseController;
@@ -54,15 +52,22 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
     fetchPosts();
     fetchCurrentUser();
+    _fetchUnreadCount();
+    _fetchUserLevel();
+
+    // Refresh unread count every 15 seconds
+    _unreadTimer = Timer.periodic(Duration(seconds: 15), (_) {
+      _fetchUnreadCount();
+    });
 
     _navGlowController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: Duration(milliseconds: 300),
     );
 
     _fabPulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: Duration(milliseconds: 1600),
     )..repeat(reverse: true);
 
     _fabPulse = Tween<double>(begin: 0.85, end: 1.0).animate(
@@ -86,6 +91,24 @@ class _HomeScreenState extends State<HomeScreen>
       debugPrint("Error fetching posts: $e");
     }
     setState(() => loading = false);
+  }
+
+  Future<void> _fetchUnreadCount() async {
+    try {
+      final count = await chatService.getTotalUnreadCount();
+      if (mounted) setState(() => _totalUnreadCount = count);
+    } catch (e) {
+      debugPrint('Error fetching unread count: $e');
+    }
+  }
+
+  Future<void> _fetchUserLevel() async {
+    try {
+      final level = await gameService.getUserLevelInfo();
+      if (mounted) setState(() => _levelInfo = level);
+    } catch (e) {
+      debugPrint('Error fetching user level: $e');
+    }
   }
 
   Future<void> fetchCurrentUser() async {
@@ -121,14 +144,30 @@ class _HomeScreenState extends State<HomeScreen>
 
     if (pickedFile == null) return;
 
-    try {
-      final fileName = pickedFile.name.toLowerCase();
-      final isVideo = fileName.endsWith('.mp4') ||
-          fileName.endsWith('.mov') ||
-          fileName.endsWith('.avi') ||
-          fileName.endsWith('.webm') ||
-          fileName.endsWith('.mkv');
+    final fileName = pickedFile.name.toLowerCase();
+    final isVideo = fileName.endsWith('.mp4') ||
+        fileName.endsWith('.mov') ||
+        fileName.endsWith('.avi') ||
+        fileName.endsWith('.webm') ||
+        fileName.endsWith('.mkv');
 
+    if (!mounted) return;
+    final result = await showModalBottomSheet<Map<String, dynamic>?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _MediaPreviewSheet(
+        filePath: pickedFile.path,
+        isVideo: isVideo,
+        initialCaption: controller.text.trim(),
+      ),
+    );
+
+    if (result == null) return; // User cancelled
+
+    final caption = result['caption'] as String? ?? '';
+
+    try {
       final contentType = isVideo ? 'video/mp4' : 'image/jpeg';
 
       String? mediaUrl;
@@ -150,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen>
       if (mediaUrl == null) return;
 
       await postService.createPostWithMedia(
-        content: controller.text.trim(),
+        content: caption,
         mediaUrl: mediaUrl,
         mediaType: isVideo ? 'video' : 'image',
       );
@@ -167,7 +206,16 @@ class _HomeScreenState extends State<HomeScreen>
     return Column(
       children: [
         // Header
-        _FeedHeader(),
+        _FeedHeader(
+          xpText: _levelInfo != null ? '${_levelInfo!.currentXp} XP' : '...',
+          onNotification: () {
+            HapticFeedback.lightImpact();
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => NotificationsScreen()),
+            );
+          },
+        ),
 
         // Compose bar
         _ComposeBar(
@@ -177,20 +225,20 @@ class _HomeScreenState extends State<HomeScreen>
           onMedia: pickMedia,
         ),
 
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
 
         // Posts
         Expanded(
           child: loading
-              ? const _LoadingFeed()
+              ? _LoadingFeed()
               : posts.isEmpty
-              ? const _EmptyFeed()
+              ? _EmptyFeed()
               : RefreshIndicator(
-            color: AppColors.primary,
-            backgroundColor: AppColors.surface,
+            color: context.colors.primary,
+            backgroundColor: context.colors.surface,
             onRefresh: fetchPosts,
             child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 100),
+              padding: EdgeInsets.only(bottom: 100),
               itemCount: posts.length,
               itemBuilder: (context, index) => _AnimatedPostCard(
                 index: index,
@@ -208,9 +256,9 @@ class _HomeScreenState extends State<HomeScreen>
       case 0:
         return _buildFeedScreen();
       case 1:
-        return const ChatListScreen();
+        return ChatListScreen();
       case 2:
-        return const GamesScreen();
+        return GamesScreen();
 
       case 3:
       // Pass current user data to ProfileScreen
@@ -220,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen>
         };
         return ProfileScreen(userData: currentUserData ?? fallbackUser);
       default:
-        return const SizedBox();
+        return SizedBox();
     }
   }
 
@@ -228,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.colors.bg,
       extendBody: true,
       body: IndexedStack(
         index: _currentIndex,
@@ -245,25 +293,25 @@ class _HomeScreenState extends State<HomeScreen>
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.accent],
+              gradient: LinearGradient(
+                colors: [context.colors.primary, context.colors.accent],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primaryGlow,
+                  color: context.colors.primaryGlow,
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
                 BoxShadow(
-                  color: AppColors.accentGlow,
+                  color: context.colors.accentGlow,
                   blurRadius: 30,
                   spreadRadius: 4,
                 ),
               ],
             ),
-            child: const Icon(Icons.add_rounded,
+            child: Icon(Icons.add_rounded,
                 color: Colors.white, size: 28),
           ),
         ),
@@ -273,10 +321,12 @@ class _HomeScreenState extends State<HomeScreen>
       // Bottom Nav
       bottomNavigationBar: _GamifiedBottomNav(
         currentIndex: _currentIndex,
+        chatUnreadCount: _totalUnreadCount,
         onTap: (i) {
           if (i < 4) {
             HapticFeedback.selectionClick();
             setState(() => _currentIndex = i);
+            if (i != 1) _fetchUnreadCount();
           }
         },
       ),
@@ -299,6 +349,14 @@ class _HomeScreenState extends State<HomeScreen>
 
 // ─── Feed Header ──────────────────────────────────────────────────────────────
 class _FeedHeader extends StatelessWidget {
+  final String xpText;
+  final VoidCallback onNotification;
+
+  const _FeedHeader({
+    required this.xpText,
+    required this.onNotification,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -308,20 +366,20 @@ class _FeedHeader extends StatelessWidget {
         right: 20,
         bottom: 12,
       ),
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
+      decoration: BoxDecoration(
+        color: context.colors.bg,
         border: Border(
-          bottom: BorderSide(color: AppColors.border, width: 0.5),
+          bottom: BorderSide(color: context.colors.border, width: 0.5),
         ),
       ),
       child: Row(
         children: [
           // Logo / Brand
           ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [AppColors.primary, AppColors.accent],
+            shaderCallback: (bounds) => LinearGradient(
+              colors: [context.colors.primary, context.colors.accent],
             ).createShader(bounds),
-            child: const Text(
+            child: Text(
               'SANLINK',
               style: TextStyle(
                 fontSize: 22,
@@ -332,24 +390,24 @@ class _FeedHeader extends StatelessWidget {
             ),
           ),
 
-          const Spacer(),
+          Spacer(),
 
           // XP Badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.surfaceAlt,
+              color: context.colors.surfaceAlt,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.gold.withOpacity(0.4)),
+              border: Border.all(color: context.colors.gold.withOpacity(0.4)),
             ),
             child: Row(
-              children: const [
-                Icon(Icons.bolt, color: AppColors.gold, size: 14),
+              children: [
+                Icon(Icons.bolt, color: context.colors.gold, size: 14),
                 SizedBox(width: 4),
                 Text(
-                  '1,240 XP',
+                  xpText,
                   style: TextStyle(
-                    color: AppColors.gold,
+                    color: context.colors.gold,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
@@ -359,35 +417,38 @@ class _FeedHeader extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
 
           // Notification bell
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceAlt,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                const Icon(Icons.notifications_outlined,
-                    color: AppColors.textSecondary, size: 18),
-                Positioned(
-                  top: 7,
-                  right: 7,
-                  child: Container(
-                    width: 7,
-                    height: 7,
-                    decoration: const BoxDecoration(
-                      color: AppColors.accent,
-                      shape: BoxShape.circle,
+          GestureDetector(
+            onTap: onNotification,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: context.colors.surfaceAlt,
+                shape: BoxShape.circle,
+                border: Border.all(color: context.colors.border),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(Icons.notifications_outlined,
+                      color: context.colors.textSecondary, size: 18),
+                  Positioned(
+                    top: 7,
+                    right: 7,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: context.colors.accent,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -403,7 +464,7 @@ class _ComposeBar extends StatelessWidget {
   final VoidCallback onPost;
   final VoidCallback onMedia;
 
-  const _ComposeBar({
+  _ComposeBar({
     this.userData,
     required this.controller,
     required this.onPost,
@@ -413,17 +474,17 @@ class _ComposeBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      margin: EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryGlow.withOpacity(0.15),
+            color: context.colors.primaryGlow.withOpacity(0.15),
             blurRadius: 12,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -435,7 +496,7 @@ class _ComposeBar extends StatelessWidget {
             height: 34,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.surfaceAlt,
+              color: context.colors.surfaceAlt,
               image: userData != null && userData!['avatar_url'] != null
                   ? DecorationImage(
                       image: NetworkImage(userData!['avatar_url']),
@@ -443,28 +504,28 @@ class _ComposeBar extends StatelessWidget {
                     )
                   : null,
               gradient: userData == null || userData!['avatar_url'] == null 
-                  ? const LinearGradient(
-                      colors: [AppColors.primary, AppColors.accent],
+                  ? LinearGradient(
+                      colors: [context.colors.primary, context.colors.accent],
                     )
                   : null,
             ),
             child: userData == null || userData!['avatar_url'] == null 
-                ? const Icon(Icons.person, color: Colors.white, size: 18)
+                ? Icon(Icons.person, color: Colors.white, size: 18)
                 : null,
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
 
           Expanded(
             child: TextField(
               controller: controller,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: context.colors.textPrimary,
                 fontSize: 14,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: "What's your move today?",
                 hintStyle: TextStyle(
-                  color: AppColors.textMuted,
+                  color: context.colors.textMuted,
                   fontSize: 14,
                 ),
                 border: InputBorder.none,
@@ -477,35 +538,35 @@ class _ComposeBar extends StatelessWidget {
           GestureDetector(
             onTap: onMedia,
             child: Container(
-              padding: const EdgeInsets.all(6),
+              padding: EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: AppColors.surfaceAlt,
+                color: context.colors.surfaceAlt,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.image_outlined,
-                  color: AppColors.textSecondary, size: 18),
+              child: Icon(Icons.image_outlined,
+                  color: context.colors.textSecondary, size: 18),
             ),
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: 6),
 
           // Send button
           GestureDetector(
             onTap: onPost,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, Color(0xFF9B7CFF)],
+                gradient: LinearGradient(
+                  colors: [context.colors.primary, Color(0xFF9B7CFF)],
                 ),
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryGlow,
+                    color: context.colors.primaryGlow,
                     blurRadius: 8,
                   ),
                 ],
               ),
-              child: const Icon(Icons.send_rounded,
+              child: Icon(Icons.send_rounded,
                   color: Colors.white, size: 16),
             ),
           ),
@@ -520,7 +581,7 @@ class _AnimatedPostCard extends StatefulWidget {
   final int index;
   final Map<String, dynamic> postData;
 
-  const _AnimatedPostCard({required this.index, required this.postData});
+  _AnimatedPostCard({required this.index, required this.postData});
 
   @override
   State<_AnimatedPostCard> createState() => _AnimatedPostCardState();
@@ -541,7 +602,7 @@ class _AnimatedPostCardState extends State<_AnimatedPostCard>
     );
     _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _slide = Tween<Offset>(
-      begin: const Offset(0, 0.08),
+      begin: Offset(0, 0.08),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
 
@@ -563,12 +624,12 @@ class _AnimatedPostCardState extends State<_AnimatedPostCard>
       child: SlideTransition(
         position: _slide,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: context.colors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.colors.border),
             ),
             child: PostCard(postData: widget.postData),
           ),
@@ -580,7 +641,7 @@ class _AnimatedPostCardState extends State<_AnimatedPostCard>
 
 // ─── Loading State ────────────────────────────────────────────────────────────
 class _LoadingFeed extends StatelessWidget {
-  const _LoadingFeed();
+  _LoadingFeed();
 
   @override
   Widget build(BuildContext context) {
@@ -593,13 +654,13 @@ class _LoadingFeed extends StatelessWidget {
             height: 40,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(context.colors.primary),
             ),
           ),
-          const SizedBox(height: 12),
-          const Text(
+          SizedBox(height: 12),
+          Text(
             'Loading the arena...',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+            style: TextStyle(color: context.colors.textMuted, fontSize: 13),
           ),
         ],
       ),
@@ -609,7 +670,7 @@ class _LoadingFeed extends StatelessWidget {
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 class _EmptyFeed extends StatelessWidget {
-  const _EmptyFeed();
+  _EmptyFeed();
 
   @override
   Widget build(BuildContext context) {
@@ -621,26 +682,26 @@ class _EmptyFeed extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: AppColors.surfaceAlt,
+              color: context.colors.surfaceAlt,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.colors.border),
             ),
-            child: const Icon(Icons.auto_awesome,
-                color: AppColors.textMuted, size: 32),
+            child: Icon(Icons.auto_awesome,
+                color: context.colors.textMuted, size: 32),
           ),
-          const SizedBox(height: 16),
-          const Text(
+          SizedBox(height: 16),
+          Text(
             'No posts yet',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
+          SizedBox(height: 6),
+          Text(
             'Be the first to make a move!',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+            style: TextStyle(color: context.colors.textMuted, fontSize: 13),
           ),
         ],
       ),
@@ -653,7 +714,7 @@ class _GamifiedBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _GamifiedBottomNav({
+  _GamifiedBottomNav({
     required this.currentIndex,
     required this.onTap,
   });
@@ -661,13 +722,13 @@ class _GamifiedBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
-      color: AppColors.surface,
+      color: context.colors.surface,
       elevation: 0,
       notchMargin: 10,
-      shape: const CircularNotchedRectangle(),
+      shape: CircularNotchedRectangle(),
       child: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: context.colors.border, width: 0.5)),
         ),
         height: 60,
         child: Row(
@@ -685,7 +746,7 @@ class _GamifiedBottomNav extends StatelessWidget {
                 index: 1,
                 currentIndex: currentIndex,
                 onTap: onTap),
-            const SizedBox(width: 48), // FAB gap
+            SizedBox(width: 48), // FAB gap
             _NavItem(
                 icon: Icons.sports_esports_rounded,
                 label: 'Games',
@@ -712,7 +773,7 @@ class _NavItem extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _NavItem({
+  _NavItem({
     required this.icon,
     required this.label,
     required this.index,
@@ -727,11 +788,11 @@ class _NavItem extends StatelessWidget {
       onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        duration: Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: isActive
             ? BoxDecoration(
-          color: AppColors.primaryGlow,
+          color: context.colors.primaryGlow,
           borderRadius: BorderRadius.circular(14),
         )
             : null,
@@ -742,9 +803,9 @@ class _NavItem extends StatelessWidget {
               icon,
               size: 22,
               color:
-              isActive ? AppColors.primary : AppColors.textMuted,
+              isActive ? context.colors.primary : context.colors.textMuted,
             ),
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
@@ -752,7 +813,7 @@ class _NavItem extends StatelessWidget {
                 fontWeight:
                 isActive ? FontWeight.w700 : FontWeight.w500,
                 color:
-                isActive ? AppColors.primary : AppColors.textMuted,
+                isActive ? context.colors.primary : context.colors.textMuted,
                 letterSpacing: 0.3,
               ),
             ),
@@ -766,42 +827,42 @@ class _NavItem extends StatelessWidget {
 // ─── Media Picker Sheet ───────────────────────────────────────────────────────
 class _MediaPickerSheet extends StatelessWidget {
   final ImagePicker picker;
-  const _MediaPickerSheet({required this.picker});
+  _MediaPickerSheet({required this.picker});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Container(
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.border,
+              color: context.colors.border,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
+          SizedBox(height: 16),
+          Text(
             'Add to Post',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           _SheetTile(
             icon: Icons.image_rounded,
-            iconColor: AppColors.primary,
+            iconColor: context.colors.primary,
             title: 'Photo from Gallery',
             subtitle: '+50 XP',
             onTap: () async {
@@ -812,7 +873,7 @@ class _MediaPickerSheet extends StatelessWidget {
           ),
           _SheetTile(
             icon: Icons.videocam_rounded,
-            iconColor: AppColors.accent,
+            iconColor: context.colors.accent,
             title: 'Video from Gallery',
             subtitle: '+100 XP',
             onTap: () async {
@@ -821,7 +882,7 @@ class _MediaPickerSheet extends StatelessWidget {
               Navigator.pop(context, file);
             },
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
         ],
       ),
     );
@@ -835,7 +896,7 @@ class _SheetTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const _SheetTile({
+  _SheetTile({
     required this.icon,
     required this.iconColor,
     required this.title,
@@ -858,26 +919,347 @@ class _SheetTile extends StatelessWidget {
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          color: AppColors.textPrimary,
+        style: TextStyle(
+          color: context.colors.textPrimary,
           fontWeight: FontWeight.w600,
           fontSize: 14,
         ),
       ),
       trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: AppColors.gold.withOpacity(0.1),
+          color: context.colors.gold.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.gold.withOpacity(0.3)),
+          border: Border.all(color: context.colors.gold.withOpacity(0.3)),
         ),
         child: Text(
           subtitle,
-          style: const TextStyle(
-            color: AppColors.gold,
+          style: TextStyle(
+            color: context.colors.gold,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Media Preview + Caption Sheet ────────────────────────────────────────────
+class _MediaPreviewSheet extends StatefulWidget {
+  final String filePath;
+  final bool isVideo;
+  final String initialCaption;
+
+  const _MediaPreviewSheet({
+    required this.filePath,
+    required this.isVideo,
+    this.initialCaption = '',
+  });
+
+  @override
+  State<_MediaPreviewSheet> createState() => _MediaPreviewSheetState();
+}
+
+class _MediaPreviewSheetState extends State<_MediaPreviewSheet> {
+  late TextEditingController _captionController;
+  bool _isPosting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _captionController = TextEditingController(text: widget.initialCaption);
+  }
+
+  @override
+  void dispose() {
+    _captionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirmAndPost() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: context.colors.border),
+        ),
+        title: ShaderMask(
+          shaderCallback: (b) => LinearGradient(
+            colors: [context.colors.primary, context.colors.accent],
+          ).createShader(b),
+          child: Text(
+            'Confirm Post',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20),
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to publish this post?',
+          style: TextStyle(color: context.colors.textSecondary, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: context.colors.textMuted)),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.pop(ctx, true),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [context.colors.primary, Color(0xFF9B7CFF)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.colors.primaryGlow,
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Text(
+                'Post It!',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isPosting = true);
+      Navigator.pop(context, {'caption': _captionController.text.trim()});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        margin: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: context.colors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: context.colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: context.colors.primaryGlow.withValues(alpha: 0.2),
+              blurRadius: 30,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: 12),
+            // Drag handle
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.colors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+
+            // Title row
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  ShaderMask(
+                    shaderCallback: (b) => LinearGradient(
+                      colors: [context.colors.primary, context.colors.accent],
+                    ).createShader(b),
+                    child: Text(
+                      widget.isVideo ? '🎬 Video Post' : '📸 Photo Post',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  Spacer(),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: context.colors.gold.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: context.colors.gold.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      widget.isVideo ? '+100 XP' : '+50 XP',
+                      style: TextStyle(
+                        color: context.colors.gold,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Media preview
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: widget.isVideo
+                    ? Container(
+                        height: 160,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: context.colors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.videocam_rounded, color: context.colors.accent, size: 48),
+                            SizedBox(height: 8),
+                            Text('Video Selected', style: TextStyle(color: context.colors.textSecondary, fontSize: 13)),
+                          ],
+                        ),
+                      )
+                    : Container(
+                        constraints: BoxConstraints(maxHeight: 220),
+                        width: double.infinity,
+                        child: Image.file(
+                          File(widget.filePath),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            height: 160,
+                            color: context.colors.surfaceAlt,
+                            child: Center(
+                              child: Icon(Icons.image_rounded, color: context.colors.primary, size: 48),
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+
+            SizedBox(height: 12),
+
+            // Caption field
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _captionController,
+                maxLines: 3,
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontSize: 15,
+                  height: 1.5,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Add a caption...',
+                  hintStyle: TextStyle(color: context.colors.textMuted, fontSize: 15),
+                  filled: true,
+                  fillColor: context.colors.surfaceAlt,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: context.colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: context.colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: context.colors.primary),
+                  ),
+                ),
+              ),
+            ),
+
+            // Action buttons
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Cancel button
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: context.colors.surfaceAlt,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: context.colors.border),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  Spacer(),
+
+                  // Post button
+                  GestureDetector(
+                    onTap: _isPosting ? null : _confirmAndPost,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [context.colors.primary, Color(0xFF9B7CFF)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: context.colors.primaryGlow,
+                            blurRadius: 16,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: _isPosting
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.send_rounded, color: Colors.white, size: 16),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Post',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -890,7 +1272,7 @@ class _PostSheet extends StatelessWidget {
   final VoidCallback onPost;
   final VoidCallback onMedia;
 
-  const _PostSheet({
+  _PostSheet({
     required this.controller,
     required this.onPost,
     required this.onMedia,
@@ -903,14 +1285,14 @@ class _PostSheet extends StatelessWidget {
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
-        margin: const EdgeInsets.all(16),
+        margin: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.colors.border),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primaryGlow.withOpacity(0.2),
+              color: context.colors.primaryGlow.withOpacity(0.2),
               blurRadius: 30,
               spreadRadius: 2,
             ),
@@ -919,24 +1301,24 @@ class _PostSheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Container(
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.border,
+                color: context.colors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               child: Row(
                 children: [
                   ShaderMask(
-                    shaderCallback: (b) => const LinearGradient(
-                      colors: [AppColors.primary, AppColors.accent],
+                    shaderCallback: (b) => LinearGradient(
+                      colors: [context.colors.primary, context.colors.accent],
                     ).createShader(b),
-                    child: const Text(
+                    child: Text(
                       'New Post',
                       style: TextStyle(
                         fontSize: 18,
@@ -945,20 +1327,20 @@ class _PostSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const Spacer(),
+                  Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(
+                    padding: EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.gold.withOpacity(0.1),
+                      color: context.colors.gold.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                       border:
-                      Border.all(color: AppColors.gold.withOpacity(0.3)),
+                      Border.all(color: context.colors.gold.withOpacity(0.3)),
                     ),
-                    child: const Text(
+                    child: Text(
                       '+25 XP',
                       style: TextStyle(
-                        color: AppColors.gold,
+                        color: context.colors.gold,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -968,40 +1350,40 @@ class _PostSheet extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.symmetric(horizontal: 16),
               child: TextField(
                 controller: controller,
                 maxLines: 4,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.colors.textPrimary,
                   fontSize: 15,
                   height: 1.5,
                 ),
                 decoration: InputDecoration(
                   hintText: "Share your victory, challenge, or story...",
-                  hintStyle: const TextStyle(
-                    color: AppColors.textMuted,
+                  hintStyle: TextStyle(
+                    color: context.colors.textMuted,
                     fontSize: 15,
                   ),
                   filled: true,
-                  fillColor: AppColors.surfaceAlt,
+                  fillColor: context.colors.surfaceAlt,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderSide: BorderSide(color: context.colors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderSide: BorderSide(color: context.colors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.primary),
+                    borderSide: BorderSide(color: context.colors.primary),
                   ),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               child: Row(
                 children: [
                   // Media button
@@ -1011,18 +1393,18 @@ class _PostSheet extends StatelessWidget {
                       onMedia();
                     },
                     child: Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceAlt,
+                        color: context.colors.surfaceAlt,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: context.colors.border),
                       ),
-                      child: const Icon(Icons.image_outlined,
-                          color: AppColors.textSecondary, size: 20),
+                      child: Icon(Icons.image_outlined,
+                          color: context.colors.textSecondary, size: 20),
                     ),
                   ),
 
-                  const Spacer(),
+                  Spacer(),
 
                   // Post button
                   GestureDetector(
@@ -1031,22 +1413,22 @@ class _PostSheet extends StatelessWidget {
                       onPost();
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                           horizontal: 28, vertical: 12),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.primary, Color(0xFF9B7CFF)],
+                        gradient: LinearGradient(
+                          colors: [context.colors.primary, Color(0xFF9B7CFF)],
                         ),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primaryGlow,
+                            color: context.colors.primaryGlow,
                             blurRadius: 16,
-                            offset: const Offset(0, 4),
+                            offset: Offset(0, 4),
                           ),
                         ],
                       ),
-                      child: const Text(
+                      child: Text(
                         'Post It',
                         style: TextStyle(
                           color: Colors.white,
