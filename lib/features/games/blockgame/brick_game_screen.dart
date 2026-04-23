@@ -11,7 +11,7 @@ const double _kPaddleH = 14;
 const double _kBallR = 8;
 const double _kBrickPadH = 4;
 const double _kBrickPadV = 3;
-const double _kBrickTop = 90; // space above first brick row
+const double _kBrickTop = 130; // space above first brick row
 const double _kBrickRowH = 28;
 const int _kTickMs = 14; // ~71fps
 
@@ -329,6 +329,17 @@ class _BrickGameScreenState extends State<BrickGameScreen>
                   lives: _lives,
                   level: _level,
                   combo: _combo,
+                  onBack: () => Navigator.pop(context),
+                  onPause: () {
+                    if (_state == _State.playing) {
+                      setState(() => _state = _State.paused);
+                      _timer?.cancel();
+                    } else if (_state == _State.paused) {
+                      setState(() => _state = _State.playing);
+                      _startLoop();
+                    }
+                  },
+                  isPaused: _state == _State.paused,
                 ),
 
                 // ─── Bricks ──────────────────────────────────────────────
@@ -503,12 +514,19 @@ class _PaddleWidget extends StatelessWidget {
 // ─── HUD ─────────────────────────────────────────────────────────────────────
 class _HUD extends StatelessWidget {
   final int score, highScore, lives, level, combo;
+  final VoidCallback onBack;
+  final VoidCallback onPause;
+  final bool isPaused;
+
   const _HUD({
     required this.score,
     required this.highScore,
     required this.lives,
     required this.level,
     required this.combo,
+    required this.onBack,
+    required this.onPause,
+    required this.isPaused,
   });
 
   @override
@@ -516,10 +534,27 @@ class _HUD extends StatelessWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Lives
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _textP),
+                  onPressed: onBack,
+                ),
+                IconButton(
+                  icon: Icon(isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: _textP, size: 28),
+                  onPressed: onPause,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Lives
             Row(
               children: List.generate(
                 3,
@@ -572,6 +607,8 @@ class _HUD extends StatelessWidget {
                           fontWeight: FontWeight.w700)),
               ],
             ),
+          ],
+        ),
           ],
         ),
       ),

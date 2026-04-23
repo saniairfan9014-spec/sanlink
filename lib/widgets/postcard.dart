@@ -350,28 +350,33 @@ class _PostCardState extends State<PostCard> {
 
             // ─── ACTIONS ───────────────────────────────
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                IconButton(
-                  icon: Icon(
-                    isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: isLiked ? Colors.red : null,
-                  ),
-                  onPressed: toggleLike,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        isLiked ? Icons.favorite : Icons.favorite_border,
+                        color: isLiked ? Colors.red : null,
+                      ),
+                      onPressed: toggleLike,
+                    ),
+                    Text("$likeCount"),
+                  ],
                 ),
-                Text("$likeCount"),
-
-                const SizedBox(width: 20),
-
-                IconButton(
-                  icon: const Icon(Icons.comment),
-                  onPressed: () => setState(() {
-                    showComments = !showComments;
-                  }),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.comment),
+                      onPressed: () => setState(() {
+                        showComments = !showComments;
+                      }),
+                    ),
+                    Text("${comments.length}"),
+                  ],
                 ),
-                Text("${comments.length}"),
-
-                const SizedBox(width: 20),
-
                 IconButton(
                   icon: Icon(
                     isSaved ? Icons.bookmark : Icons.bookmark_border,
@@ -379,9 +384,6 @@ class _PostCardState extends State<PostCard> {
                   ),
                   onPressed: toggleSave,
                 ),
-
-                const SizedBox(width: 20),
-
                 IconButton(
                   icon: const Icon(Icons.share),
                   onPressed: sharePost,
