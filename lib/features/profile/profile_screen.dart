@@ -8,6 +8,7 @@ import 'package:sanlink/features/profile/update_profile_screen.dart';
 import 'package:sanlink/features/games/services/game_service.dart';
 import 'package:sanlink/features/chat/services/chat_service.dart';
 import 'package:sanlink/features/chat/screens/direct_chat_screen.dart';
+import 'package:sanlink/features/frames/frames_screen.dart';
 
 void _log(String tag, String msg) => debugPrint("[$tag] $msg");
 
@@ -268,7 +269,18 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
               centerTitle: true,
               actions: [
-                if (isMe)
+                if (isMe) ...[
+                  IconButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const FramesScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.style_outlined, color: _C.textSecondary, size: 22),
+                    tooltip: "Frames Collection",
+                  ),
                   Padding(
                     padding: const EdgeInsets.only(right: 12),
                     child: IconButton(
@@ -276,6 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       icon: const Icon(Icons.settings_outlined, color: _C.textSecondary, size: 22),
                     ),
                   ),
+                ],
               ],
             ),
 

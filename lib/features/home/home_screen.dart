@@ -21,7 +21,7 @@ import 'package:sanlink/features/chat/services/chat_service.dart';
 
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 class HomeScreen extends StatefulWidget {
-  HomeScreen({super.key});
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -712,10 +712,12 @@ class _EmptyFeed extends StatelessWidget {
 // ─── Gamified Bottom Nav ──────────────────────────────────────────────────────
 class _GamifiedBottomNav extends StatelessWidget {
   final int currentIndex;
+  final int chatUnreadCount;
   final ValueChanged<int> onTap;
 
   _GamifiedBottomNav({
     required this.currentIndex,
+    required this.chatUnreadCount,
     required this.onTap,
   });
 
@@ -745,6 +747,7 @@ class _GamifiedBottomNav extends StatelessWidget {
                 label: 'Chat',
                 index: 1,
                 currentIndex: currentIndex,
+                badgeCount: chatUnreadCount,
                 onTap: onTap),
             SizedBox(width: 48), // FAB gap
             _NavItem(
@@ -771,6 +774,7 @@ class _NavItem extends StatelessWidget {
   final String label;
   final int index;
   final int currentIndex;
+  final int badgeCount;
   final ValueChanged<int> onTap;
 
   _NavItem({
@@ -778,6 +782,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.index,
     required this.currentIndex,
+    this.badgeCount = 0,
     required this.onTap,
   });
 
@@ -799,11 +804,36 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 22,
-              color:
-              isActive ? context.colors.primary : context.colors.textMuted,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  size: 22,
+                  color:
+                  isActive ? context.colors.primary : context.colors.textMuted,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -4,
+                    top: -4,
+                    child: Container(
+                      padding: EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: context.colors.accent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        badgeCount > 9 ? '9+' : badgeCount.toString(),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             SizedBox(height: 2),
             Text(
@@ -1050,216 +1080,218 @@ class _MediaPreviewSheetState extends State<_MediaPreviewSheet> {
           border: Border.all(color: context.colors.border),
           boxShadow: [
             BoxShadow(
-              color: context.colors.primaryGlow.withValues(alpha: 0.2),
+              color: context.colors.primaryGlow.withOpacity(0.2),
               blurRadius: 30,
               spreadRadius: 2,
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(height: 12),
-            // Drag handle
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.colors.border,
-                borderRadius: BorderRadius.circular(2),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 12),
+              // Drag handle
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.colors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
 
-            // Title row
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  ShaderMask(
-                    shaderCallback: (b) => LinearGradient(
-                      colors: [context.colors.primary, context.colors.accent],
-                    ).createShader(b),
-                    child: Text(
-                      widget.isVideo ? '🎬 Video Post' : '📸 Photo Post',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
+              // Title row
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (b) => LinearGradient(
+                        colors: [context.colors.primary, context.colors.accent],
+                      ).createShader(b),
+                      child: Text(
+                        widget.isVideo ? '🎬 Video Post' : '📸 Photo Post',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-                  Spacer(),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: context.colors.gold.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: context.colors.gold.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      widget.isVideo ? '+100 XP' : '+50 XP',
-                      style: TextStyle(
-                        color: context.colors.gold,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                    Spacer(),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: context.colors.gold.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: context.colors.gold.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        widget.isVideo ? '+100 XP' : '+50 XP',
+                        style: TextStyle(
+                          color: context.colors.gold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
-            // Media preview
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: widget.isVideo
-                    ? Container(
-                        height: 160,
-                        width: double.infinity,
+              // Media preview
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: widget.isVideo
+                      ? Container(
+                          height: 160,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: context.colors.surfaceAlt,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.videocam_rounded, color: context.colors.accent, size: 48),
+                              SizedBox(height: 8),
+                              Text('Video Selected', style: TextStyle(color: context.colors.textSecondary, fontSize: 13)),
+                            ],
+                          ),
+                        )
+                      : Container(
+                          constraints: BoxConstraints(maxHeight: 220),
+                          width: double.infinity,
+                          child: Image.file(
+                            File(widget.filePath),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              height: 160,
+                              color: context.colors.surfaceAlt,
+                              child: Center(
+                                child: Icon(Icons.image_rounded, color: context.colors.primary, size: 48),
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+
+              SizedBox(height: 12),
+
+              // Caption field
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  controller: _captionController,
+                  maxLines: 3,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 15,
+                    height: 1.5,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Add a caption...',
+                    hintStyle: TextStyle(color: context.colors.textMuted, fontSize: 15),
+                    filled: true,
+                    fillColor: context.colors.surfaceAlt,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: context.colors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: context.colors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: context.colors.primary),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Action buttons
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Cancel button
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         decoration: BoxDecoration(
                           color: context.colors.surfaceAlt,
                           borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: context.colors.border),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.videocam_rounded, color: context.colors.accent, size: 48),
-                            SizedBox(height: 8),
-                            Text('Video Selected', style: TextStyle(color: context.colors.textSecondary, fontSize: 13)),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: context.colors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    Spacer(),
+
+                    // Post button
+                    GestureDetector(
+                      onTap: _isPosting ? null : _confirmAndPost,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [context.colors.primary, Color(0xFF9B7CFF)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: context.colors.primaryGlow,
+                              blurRadius: 16,
+                              offset: Offset(0, 4),
+                            ),
                           ],
                         ),
-                      )
-                    : Container(
-                        constraints: BoxConstraints(maxHeight: 220),
-                        width: double.infinity,
-                        child: Image.file(
-                          File(widget.filePath),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            height: 160,
-                            color: context.colors.surfaceAlt,
-                            child: Center(
-                              child: Icon(Icons.image_rounded, color: context.colors.primary, size: 48),
-                            ),
-                          ),
-                        ),
-                      ),
-              ),
-            ),
-
-            SizedBox(height: 12),
-
-            // Caption field
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _captionController,
-                maxLines: 3,
-                style: TextStyle(
-                  color: context.colors.textPrimary,
-                  fontSize: 15,
-                  height: 1.5,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Add a caption...',
-                  hintStyle: TextStyle(color: context.colors.textMuted, fontSize: 15),
-                  filled: true,
-                  fillColor: context.colors.surfaceAlt,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: context.colors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: context.colors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: context.colors.primary),
-                  ),
-                ),
-              ),
-            ),
-
-            // Action buttons
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Cancel button
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: context.colors.surfaceAlt,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: context.colors.border),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: context.colors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  Spacer(),
-
-                  // Post button
-                  GestureDetector(
-                    onTap: _isPosting ? null : _confirmAndPost,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [context.colors.primary, Color(0xFF9B7CFF)],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: context.colors.primaryGlow,
-                            blurRadius: 16,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: _isPosting
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.send_rounded, color: Colors.white, size: 16),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Post',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 15,
-                                    letterSpacing: 0.5,
-                                  ),
+                        child: _isPosting
+                            ? SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
                                 ),
-                              ],
-                            ),
+                              )
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.send_rounded, color: Colors.white, size: 16),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Post',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 15,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1298,151 +1330,153 @@ class _PostSheet extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(height: 12),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.colors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  ShaderMask(
-                    shaderCallback: (b) => LinearGradient(
-                      colors: [context.colors.primary, context.colors.accent],
-                    ).createShader(b),
-                    child: Text(
-                      'New Post',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  Spacer(),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: context.colors.gold.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border:
-                      Border.all(color: context.colors.gold.withOpacity(0.3)),
-                    ),
-                    child: Text(
-                      '+25 XP',
-                      style: TextStyle(
-                        color: context.colors.gold,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: controller,
-                maxLines: 4,
-                style: TextStyle(
-                  color: context.colors.textPrimary,
-                  fontSize: 15,
-                  height: 1.5,
-                ),
-                decoration: InputDecoration(
-                  hintText: "Share your victory, challenge, or story...",
-                  hintStyle: TextStyle(
-                    color: context.colors.textMuted,
-                    fontSize: 15,
-                  ),
-                  filled: true,
-                  fillColor: context.colors.surfaceAlt,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: context.colors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: context.colors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: context.colors.primary),
-                  ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 12),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.colors.border,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ),
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Media button
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      onMedia();
-                    },
-                    child: Container(
-                      padding: EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: context.colors.surfaceAlt,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.colors.border),
-                      ),
-                      child: Icon(Icons.image_outlined,
-                          color: context.colors.textSecondary, size: 20),
-                    ),
-                  ),
-
-                  Spacer(),
-
-                  // Post button
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      onPost();
-                    },
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [context.colors.primary, Color(0xFF9B7CFF)],
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (b) => LinearGradient(
+                        colors: [context.colors.primary, context.colors.accent],
+                      ).createShader(b),
+                      child: Text(
+                        'New Post',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
                         ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: context.colors.primaryGlow,
-                            blurRadius: 16,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
+                      ),
+                    ),
+                    Spacer(),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: context.colors.gold.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border:
+                        Border.all(color: context.colors.gold.withOpacity(0.3)),
                       ),
                       child: Text(
-                        'Post It',
+                        '+25 XP',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                          letterSpacing: 0.5,
+                          color: context.colors.gold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  controller: controller,
+                  maxLines: 4,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 15,
+                    height: 1.5,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: "Share your victory, challenge, or story...",
+                    hintStyle: TextStyle(
+                      color: context.colors.textMuted,
+                      fontSize: 15,
+                    ),
+                    filled: true,
+                    fillColor: context.colors.surfaceAlt,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: context.colors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: context.colors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: context.colors.primary),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Media button
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        onMedia();
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: context.colors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: context.colors.border),
+                        ),
+                        child: Icon(Icons.image_outlined,
+                            color: context.colors.textSecondary, size: 20),
+                      ),
+                    ),
+
+                    Spacer(),
+
+                    // Post button
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        onPost();
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 28, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [context.colors.primary, Color(0xFF9B7CFF)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: context.colors.primaryGlow,
+                              blurRadius: 16,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          'Post It',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

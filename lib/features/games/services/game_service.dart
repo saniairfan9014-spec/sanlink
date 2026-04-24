@@ -34,7 +34,7 @@ class GameService {
   String? get currentUserId => supabase.auth.currentUser?.id;
 
   // Add game result and XP
-  Future<void> addGameResult(String gameId, bool isWin) async {
+  Future<void> addGameResult(String gameId, bool isWin, {int score = 0, String difficulty = 'medium'}) async {
     final me = currentUserId;
     if (me == null) return;
 
@@ -60,12 +60,49 @@ class GameService {
       }).eq('user_id', me).eq('game_id', gameId);
     }
 
-    // 2. Add XP if win
+    // 2. Calculate and Add XP
+    int xpEarned = 0;
+    
+    // Base XP for just playing
+    xpEarned += 5;
+    
+    // Difficulty multiplier
+    double multiplier = 1.0;
+    switch (difficulty.toLowerCase()) {
+      case 'easy': multiplier = 0.7; break;
+      case 'medium': multiplier = 1.0; break;
+      case 'hard': multiplier = 1.5; break;
+    }
+
+    // Win bonus
     if (isWin) {
+      xpEarned += 15;
+    }
+
+    // Performance bonus (rewarding "playing well" even if lost)
+    if (gameId == 'snake' || gameId == 'brickbreaker') {
+      // Reward 1 XP for every 5 points
+      xpEarned += (score / 5).floor();
+    } else if (gameId == 'quiz') {
+      // Reward 2 XP for every correct answer (assuming score is correct answers)
+      xpEarned += (score * 2);
+    } else if (gameId == 'tictactoe') {
+      // Tic tac toe doesn't have a score, so maybe just win/loss
+      if (!isWin && score > 5) xpEarned += 2; // "score" could be moves made?
+    }
+
+    int finalXp = (xpEarned * multiplier).round();
+
+    if (finalXp > 0) {
       await supabase.from('xp_transactions').insert({
         'user_id': me,
-        'action_type': 'win_$gameId',
-        'xp_earned': 5,
+        'action_type': 'game_$gameId',
+        'xp_earned': finalXp,
+        'metadata': {
+          'is_win': isWin,
+          'score': score,
+          'difficulty': difficulty,
+        }
       });
     }
   }

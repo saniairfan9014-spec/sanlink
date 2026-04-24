@@ -6,7 +6,15 @@ import '../services/game_service.dart';
 
 class QuizScreen extends StatefulWidget {
   final String selectedCategory;
-  const QuizScreen({super.key, required this.selectedCategory});
+  final int timerDuration;
+  final String difficultyName;
+
+  const QuizScreen({
+    super.key,
+    required this.selectedCategory,
+    required this.timerDuration,
+    required this.difficultyName,
+  });
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -23,7 +31,7 @@ class _QuizScreenState extends State<QuizScreen>
 
   // Timer
   late Timer _timer;
-  int _timeLeft = 15;
+  late int _timeLeft;
 
   // Animation
   late AnimationController _slideController;
@@ -47,11 +55,12 @@ class _QuizScreenState extends State<QuizScreen>
         parent: _slideController, curve: Curves.easeIn);
 
     _slideController.forward();
+    _timeLeft = widget.timerDuration;
     _startTimer();
   }
 
   void _startTimer() {
-    _timeLeft = 15;
+    _timeLeft = widget.timerDuration;
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) return;
       if (_timeLeft == 0) {
@@ -105,7 +114,7 @@ class _QuizScreenState extends State<QuizScreen>
   void _showResult() {
     // LOG GAME RESULT
     final isWin = score / questions.length >= 0.7;
-    _gameService.addGameResult('quiz', isWin);
+    _gameService.addGameResult('quiz', isWin, score: score, difficulty: widget.difficultyName);
 
     Navigator.pushReplacement(
       context,
@@ -120,8 +129,11 @@ class _QuizScreenState extends State<QuizScreen>
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (_) =>
-                      QuizScreen(selectedCategory: widget.selectedCategory),
+                  builder: (_) => QuizScreen(
+                    selectedCategory: widget.selectedCategory,
+                    timerDuration: widget.timerDuration,
+                    difficultyName: widget.difficultyName,
+                  ),
                 ),
               );
             },
@@ -190,9 +202,9 @@ class _QuizScreenState extends State<QuizScreen>
 
     final q = questions[currentIndex];
     final progress = (currentIndex + 1) / questions.length;
-    final timerColor = _timeLeft > 7
+    final timerColor = _timeLeft > (widget.timerDuration * 0.5)
         ? Colors.greenAccent
-        : _timeLeft > 3
+        : _timeLeft > (widget.timerDuration * 0.2)
             ? Colors.orangeAccent
             : Colors.redAccent;
 
@@ -243,7 +255,7 @@ class _QuizScreenState extends State<QuizScreen>
                       fit: StackFit.expand,
                       children: [
                         CircularProgressIndicator(
-                          value: _timeLeft / 15,
+                          value: _timeLeft / widget.timerDuration,
                           backgroundColor: const Color(0xFF2A2A3E),
                           valueColor:
                               AlwaysStoppedAnimation<Color>(timerColor),

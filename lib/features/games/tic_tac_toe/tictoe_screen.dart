@@ -19,8 +19,13 @@ const _winGlow = Color(0xFF00E676);
 
 class TicTacToeScreen extends StatefulWidget {
   final String initialMode;
+  final String difficulty;
 
-  const TicTacToeScreen({super.key, required this.initialMode});
+  const TicTacToeScreen({
+    super.key, 
+    required this.initialMode,
+    this.difficulty = 'medium',
+  });
 
   @override
   State<TicTacToeScreen> createState() => _TicTacToeScreenState();
@@ -95,7 +100,7 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> with TickerProviderSt
       setState(() => aiThinking = true);
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
-      final aiMove = GameLogic.bestMove(List.from(board), 'O');
+      final aiMove = GameLogic.bestMove(List.from(board), 'O', widget.difficulty);
       _playMove(aiMove, 'O');
       setState(() => aiThinking = false);
     } else {
@@ -120,7 +125,7 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> with TickerProviderSt
       
       // LOG GAME RESULT
       if (mode == 'pvai') {
-        _gameService.addGameResult('tictactoe', w == 'X');
+        _gameService.addGameResult('tictactoe', w == 'X', difficulty: widget.difficulty);
       }
 
       if (w == 'Draw') {

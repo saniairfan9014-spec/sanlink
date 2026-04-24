@@ -1,3 +1,5 @@
+import 'dart:math';
+
 // ─── Game Logic with Minimax AI ──────────────────────────────────────────────
 
 const List<List<int>> _kWinPatterns = [
@@ -26,8 +28,36 @@ class GameLogic {
     return null;
   }
 
-  // ─── Minimax – returns best index for given player ──────────────────────────
-  static int bestMove(List<String> board, String aiSymbol) {
+  // ─── AI Move – returns index based on difficulty ────────────────────────────
+  static int bestMove(List<String> board, String aiSymbol, String difficulty) {
+    final availableMoves = <int>[];
+    for (int i = 0; i < 9; i++) {
+      if (board[i] == '') availableMoves.add(i);
+    }
+
+    if (availableMoves.isEmpty) return -1;
+
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
+        // Purely random
+        return availableMoves[Random().nextInt(availableMoves.length)];
+      
+      case 'medium':
+        // 50% chance of making an optimal move, 50% chance of random
+        if (Random().nextBool()) {
+          return _getBestMove(board, aiSymbol);
+        } else {
+          return availableMoves[Random().nextInt(availableMoves.length)];
+        }
+
+      case 'hard':
+      default:
+        // Purely optimal
+        return _getBestMove(board, aiSymbol);
+    }
+  }
+
+  static int _getBestMove(List<String> board, String aiSymbol) {
     final human = aiSymbol == 'O' ? 'X' : 'O';
     int bestScore = -1000;
     int move = -1;

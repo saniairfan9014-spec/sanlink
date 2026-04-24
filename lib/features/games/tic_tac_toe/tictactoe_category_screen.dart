@@ -79,12 +79,16 @@ class TicTacToeCategoryScreen extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TicTacToeScreen(initialMode: mode),
-          ),
-        );
+        if (mode == 'pvai') {
+          _showDifficultySelector(context);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TicTacToeScreen(initialMode: mode),
+            ),
+          );
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(24),
@@ -117,7 +121,7 @@ class TicTacToeCategoryScreen extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -142,6 +146,155 @@ class TicTacToeCategoryScreen extends StatelessWidget {
               ),
               child: Icon(Icons.play_arrow_rounded, color: color),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDifficultySelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Color(0xFF13131A),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            border: Border(top: BorderSide(color: Color(0xFF2A2A3D), width: 2)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  "AI Difficulty",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Higher difficulty earns more XP",
+                  style: TextStyle(color: Colors.white54, fontSize: 14),
+                ),
+                const SizedBox(height: 32),
+                _DifficultyButton(
+                  title: "Easy",
+                  subtitle: "AI makes random moves",
+                  icon: Icons.face_retouching_natural_rounded,
+                  color: Colors.greenAccent,
+                  onTap: () => _startTicTacToe(context, 'Easy'),
+                ),
+                const SizedBox(height: 16),
+                _DifficultyButton(
+                  title: "Medium",
+                  subtitle: "A balanced challenge",
+                  icon: Icons.smart_toy_rounded,
+                  color: Colors.orangeAccent,
+                  onTap: () => _startTicTacToe(context, 'Medium'),
+                ),
+                const SizedBox(height: 16),
+                _DifficultyButton(
+                  title: "Hard",
+                  subtitle: "Unbeatable Minimax AI",
+                  icon: Icons.psychology_rounded,
+                  color: Colors.redAccent,
+                  onTap: () => _startTicTacToe(context, 'Hard'),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _startTicTacToe(BuildContext context, String difficulty) {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TicTacToeScreen(
+          initialMode: 'pvai',
+          difficulty: difficulty,
+        ),
+      ),
+    );
+  }
+}
+
+class _DifficultyButton extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _DifficultyButton({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(color: color,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: color.withOpacity(0.5)),
           ],
         ),
       ),

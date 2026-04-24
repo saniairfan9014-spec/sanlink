@@ -312,6 +312,21 @@ class ChatService {
         .subscribe();
   }
 
+  // subscribeToAllMessages(Function callback)
+  RealtimeChannel subscribeToAllMessages(void Function() callback) {
+    return supabase
+        .channel('public:all_messages')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          callback: (payload) {
+            callback();
+          },
+        )
+        .subscribe();
+  }
+
   // subscribeToRequests(Function callback)
   RealtimeChannel subscribeToRequests(void Function() callback) {
     final me = currentUserId;

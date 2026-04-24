@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'tic_tac_toe/tictactoe_category_screen.dart';
 import 'quiz/quiz_category_screen.dart';
 import 'snackgame/snake_category_screen.dart';
-import 'blockgame/brick_game_screen.dart';
+import 'blockgame/brick_category_screen.dart';
 import 'services/game_service.dart';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ class GamesScreen extends StatefulWidget {
 
   static Widget _buildTicTacToe(BuildContext _) => const TicTacToeCategoryScreen();
   static Widget _buildQuiz(BuildContext _) => const QuizCategoryScreen();
-  static Widget _buildBrick(BuildContext _) => const BrickGameScreen();
+  static Widget _buildBrick(BuildContext _) => const BrickCategoryScreen();
   static Widget _buildSnake(BuildContext _) => const SnakeCategoryScreen();
 
   @override

@@ -37,6 +37,7 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   bool _isLoadingRequests = true;
   
   RealtimeChannel? _requestsChannel;
+  RealtimeChannel? _messagesChannel;
 
   @override
   void initState() {
@@ -48,6 +49,10 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
       _loadRequests();
       _loadChats(); // Also refresh chats in case a request was accepted
     });
+
+    _messagesChannel = chatService.subscribeToAllMessages(() {
+      _loadChats();
+    });
   }
 
   @override
@@ -55,6 +60,9 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
     _tabController.dispose();
     if (_requestsChannel != null) {
       chatService.unsubscribe(_requestsChannel!);
+    }
+    if (_messagesChannel != null) {
+      chatService.unsubscribe(_messagesChannel!);
     }
     super.dispose();
   }
@@ -213,89 +221,143 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                           final friendInitial = friendName.isNotEmpty ? friendName[0].toUpperCase() : '?';
                           final unreadCount = chat['unread_count'] ?? 0;
                           
-                          return ListTile(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => DirectChatScreen(
-                                    chatId: chat['chat_id'],
-                                    friendName: friendName,
+                          final isUnread = unreadCount > 0;
+                          
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isUnread ? _C.primary.withOpacity(0.05) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isUnread ? _C.primary.withOpacity(0.2) : Colors.transparent,
+                                width: 1,
+                              ),
+                              boxShadow: isUnread ? [
+                                BoxShadow(
+                                  color: _C.primary.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                )
+                              ] : null,
+                            ),
+                            child: ListTile(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DirectChatScreen(
+                                      chatId: chat['chat_id'],
+                                      friendName: friendName,
+                                    ),
                                   ),
-                                ),
-                              ).then((_) => _loadChats());
-                            },
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            leading: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: _C.surfaceAlt,
-                                  child: Text(friendInitial, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
-                                ),
-                                if (unreadCount > 0)
-                                  Positioned(
-                                    right: -4,
-                                    top: -4,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(
-                                        color: _C.red,
-                                        shape: BoxShape.circle,
+                                ).then((_) => _loadChats());
+                              },
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                              leading: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isUnread ? _C.primary : Colors.transparent,
+                                        width: 2,
                                       ),
-                                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                                      child: Center(
-                                        child: Text(
-                                          unreadCount > 99 ? '99+' : '$unreadCount',
-                                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                    padding: const EdgeInsets.all(2),
+                                    child: CircleAvatar(
+                                      backgroundColor: _C.surfaceAlt,
+                                      child: Text(friendInitial, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ),
+                                  if (isUnread)
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: _C.green,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: _C.bg, width: 2),
                                         ),
                                       ),
                                     ),
+                                ],
+                              ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      friendName,
+                                      style: TextStyle(
+                                        color: isUnread ? Colors.white : _C.textPrimary,
+                                        fontWeight: isUnread ? FontWeight.w900 : FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
                                   ),
-                              ],
-                            ),
-                            title: Text(
-                              friendName,
-                              style: TextStyle(
-                                color: _C.textPrimary,
-                                fontWeight: unreadCount > 0 ? FontWeight.w900 : FontWeight.bold,
+                                  if (lastMessage != null)
+                                    Text(
+                                      _formatTime(lastMessage['created_at']),
+                                      style: TextStyle(
+                                        color: isUnread ? _C.primary : _C.textMuted,
+                                        fontSize: 11,
+                                        fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  children: [
+                                    if (lastMessage != null && lastMessage['sender_id'] == chatService.currentUserId) ...[
+                                      _StatusIcon(status: lastMessage['status'] ?? 'sent'),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Expanded(
+                                      child: Text(
+                                        lastMessage != null ? lastMessage['message'] : 'Started a chat',
+                                        style: TextStyle(
+                                          color: isUnread ? _C.textPrimary : (lastMessage?['sender_id'] == null ? _C.accent : _C.textSecondary),
+                                          fontStyle: lastMessage?['sender_id'] == null ? FontStyle.italic : FontStyle.normal,
+                                          fontWeight: isUnread ? FontWeight.w600 : FontWeight.normal,
+                                          fontSize: 13,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isUnread) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [_C.primary, Color(0xFF9B7BFF)],
+                                          ),
+                                          borderRadius: BorderRadius.circular(10),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: _C.primary.withOpacity(0.3),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          unreadCount > 9 ? '9+' : '$unreadCount',
+                                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
                             ),
-                            subtitle: Row(
-                              children: [
-                                if (lastMessage != null && lastMessage['sender_id'] == chatService.currentUserId) ...[
-                                  _StatusIcon(status: lastMessage['status'] ?? 'sent'),
-                                  const SizedBox(width: 4),
-                                ],
-                                Expanded(
-                                  child: Text(
-                                    lastMessage != null ? lastMessage['message'] : 'Started a chat',
-                                    style: TextStyle(
-                                      color: unreadCount > 0 ? _C.textPrimary : (lastMessage?['sender_id'] == null ? _C.accent : _C.textSecondary),
-                                      fontStyle: lastMessage?['sender_id'] == null ? FontStyle.italic : FontStyle.normal,
-                                      fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
-                                      fontSize: 13,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            trailing: unreadCount > 0
-                                ? Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: _C.primary,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      unreadCount > 99 ? '99+' : '$unreadCount',
-                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                    ),
-                                  )
-                                : null,
                           );
                         },
                       ),
@@ -403,6 +465,28 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
         ],
       ),
     );
+  }
+
+  String _formatTime(String? timestamp) {
+    if (timestamp == null) return '';
+    try {
+      final date = DateTime.parse(timestamp).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(date);
+
+      if (diff.inMinutes < 1) return 'now';
+      if (diff.inHours < 1) return '${diff.inMinutes}m';
+      if (diff.inDays < 1) {
+        return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      }
+      if (diff.inDays < 7) {
+        final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        return days[date.weekday - 1];
+      }
+      return '${date.day}/${date.month}';
+    } catch (e) {
+      return '';
+    }
   }
 }
 

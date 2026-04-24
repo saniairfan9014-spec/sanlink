@@ -63,23 +63,163 @@ class QuizCategoryScreen extends StatelessWidget {
                     emoji: cat.emoji,
                     color1: c1,
                     color2: c2,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          pageBuilder: (_, animation, __) => FadeTransition(
-                            opacity: animation,
-                            child: QuizScreen(selectedCategory: cat.name),
-                          ),
-                          transitionDuration:
-                              const Duration(milliseconds: 400),
-                        ),
-                      );
-                    },
+                    onTap: () => _showDifficultySelector(context, cat.name),
                   );
                 },
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDifficultySelector(BuildContext context, String categoryName) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Color(0xFF1A1A2E),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            border: Border(top: BorderSide(color: Color(0xFF3A3A5C), width: 2)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "Select Difficulty",
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Challenge yourself and earn more XP",
+                  style: TextStyle(color: Colors.white54, fontSize: 14),
+                ),
+                const SizedBox(height: 32),
+                _DifficultyButton(
+                  title: "Easy",
+                  subtitle: "20 seconds per question",
+                  icon: Icons.timer_outlined,
+                  color: Colors.greenAccent,
+                  onTap: () => _startQuiz(context, categoryName, 20, "Easy"),
+                ),
+                const SizedBox(height: 16),
+                _DifficultyButton(
+                  title: "Medium",
+                  subtitle: "15 seconds per question",
+                  icon: Icons.timer,
+                  color: Colors.orangeAccent,
+                  onTap: () => _startQuiz(context, categoryName, 15, "Medium"),
+                ),
+                const SizedBox(height: 16),
+                _DifficultyButton(
+                  title: "Hard",
+                  subtitle: "10 seconds per question",
+                  icon: Icons.timer_3_rounded,
+                  color: Colors.redAccent,
+                  onTap: () => _startQuiz(context, categoryName, 10, "Hard"),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _startQuiz(BuildContext context, String cat, int duration, String diff) {
+    Navigator.pop(context); // Close sheet
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, animation, __) => FadeTransition(
+          opacity: animation,
+          child: QuizScreen(
+            selectedCategory: cat,
+            timerDuration: duration,
+            difficultyName: diff,
+          ),
+        ),
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
+  }
+}
+
+class _DifficultyButton extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _DifficultyButton({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: color.withOpacity(0.5)),
           ],
         ),
       ),
@@ -150,7 +290,7 @@ class _CategoryCardState extends State<_CategoryCard>
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: widget.color2.withValues(alpha: 0.4),
+                color: widget.color2.withOpacity(0.4),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               )
@@ -176,7 +316,7 @@ class _CategoryCardState extends State<_CategoryCard>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(

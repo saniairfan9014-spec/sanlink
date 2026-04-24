@@ -96,6 +96,7 @@ class _DirectChatScreenState extends State<DirectChatScreen>
     );
 
     _loadMessages();
+    _markRead();
 
     _log("REALTIME", "Subscribing to messages...");
 
@@ -118,8 +119,21 @@ class _DirectChatScreenState extends State<DirectChatScreen>
             });
 
             _scrollToBottom();
+            
+            // Mark as read if the message is from friend
+            if (newMsg['sender_id'] != chatService.currentUserId) {
+              _markRead();
+            }
           }
         });
+  }
+
+  Future<void> _markRead() async {
+    try {
+      await chatService.markAsRead(widget.chatId);
+    } catch (e) {
+      _log("READ_ERROR", "Failed to mark as read: $e");
+    }
   }
 
   @override

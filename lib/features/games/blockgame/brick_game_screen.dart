@@ -53,7 +53,14 @@ enum _State { idle, playing, paused, won, lost }
 
 // ──────────────────────────────────────────────────────────────────────────────
 class BrickGameScreen extends StatefulWidget {
-  const BrickGameScreen({super.key});
+  final double speedMultiplier;
+  final String difficultyName;
+
+  const BrickGameScreen({
+    super.key,
+    required this.speedMultiplier,
+    required this.difficultyName,
+  });
 
   @override
   State<BrickGameScreen> createState() => _BrickGameScreenState();
@@ -135,7 +142,7 @@ class _BrickGameScreenState extends State<BrickGameScreen>
     _bx = _sw / 2;
     _by = _padY - _kBallR - 2;
     final angle = (Random().nextDouble() * 60 + 60) * pi / 180;
-    final speed = 5.0 + _level * 0.5;
+    final speed = (5.0 + _level * 0.5) * widget.speedMultiplier;
     _dx = cos(angle) * speed * (Random().nextBool() ? 1 : -1);
     _dy = -sin(angle).abs() * speed;
   }
@@ -253,7 +260,7 @@ class _BrickGameScreenState extends State<BrickGameScreen>
       if (_lives <= 0) {
         _timer?.cancel();
         _state = _State.lost;
-        _gameService.addGameResult('brickbreaker', false);
+        _gameService.addGameResult('brickbreaker', false, score: _score, difficulty: widget.difficultyName);
       } else {
         _resetBall();
         _state = _State.idle;
@@ -266,7 +273,7 @@ class _BrickGameScreenState extends State<BrickGameScreen>
     if (_bricks.every((b) => !b.alive)) {
       _timer?.cancel();
       _state = _State.won;
-      _gameService.addGameResult('brickbreaker', true);
+      _gameService.addGameResult('brickbreaker', true, score: _score, difficulty: widget.difficultyName);
       HapticFeedback.heavyImpact();
     }
   }
@@ -437,7 +444,7 @@ class _BrickWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(5),
         boxShadow: [
           BoxShadow(
-            color: brick.color.withValues(alpha: 0.5),
+            color: brick.color.withOpacity(0.5),
             blurRadius: 6,
             spreadRadius: 0,
           ),
@@ -476,7 +483,7 @@ class _BallWidget extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: _accent.withValues(alpha: 0.7),
+            color: _accent.withOpacity(0.7),
             blurRadius: 12,
             spreadRadius: 2,
           ),
@@ -588,10 +595,10 @@ class _HUD extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: _primary.withValues(alpha: 0.2),
+                    color: _primary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                        color: _primary.withValues(alpha: 0.4)),
+                        color: _primary.withOpacity(0.4)),
                   ),
                   child: Text('LVL $level',
                       style: const TextStyle(
@@ -665,7 +672,7 @@ class _PausedOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withValues(alpha: 0.6),
+      color: Colors.black.withOpacity(0.6),
       child: const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -698,7 +705,7 @@ class _WonOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withValues(alpha: 0.8),
+      color: Colors.black.withOpacity(0.8),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -737,7 +744,7 @@ class _LostOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withValues(alpha: 0.85),
+      color: Colors.black.withOpacity(0.85),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
