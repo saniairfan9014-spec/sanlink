@@ -28,30 +28,91 @@ class _FramesScreenState extends State<FramesScreen> {
     try {
       final allFrames = await _frameService.getAllFrames();
       final unlocked = await _frameService.getUserFrames();
+      
+      // Fetch current user's equipped frame URL for selection highlighting
+      final currentUser = _frameService.client.auth.currentUser;
+      String? currentFrameUrl;
+      if (currentUser != null) {
+        try {
+          final profile = await _frameService.client
+              .from('users')
+              .select('name, avatar_url, profile_pic') // Only select columns that definitely exist
+              .eq('id', currentUser.id)
+              .maybeSingle();
+          
+          if (profile != null) {
+            // Check for DB column (we already know it might fail, so we'll check local fallback)
+          }
+        } catch (e) {
+          debugPrint("Profile frame column missing in users table: $e");
+        }
 
-      final equipped = unlocked.firstWhere(
-            (f) => f['is_equipped'] == true,
-        orElse: () => null,
-      );
+        // Check local storage fallback
+        currentFrameUrl = await _frameService.getLocalEquippedFrame();
+      }
+
+      // Fallback: If no frames in table, check the bucket directly
+      List<dynamic> combinedFrames = List.from(allFrames);
+      if (combinedFrames.isEmpty) {
+        final bucketFrames = await _frameService.getBucketFrames();
+        combinedFrames.addAll(bucketFrames);
+      }
+
+      // Determine selected frame ID based on either URL match or table flag
+      String? initialSelectedId;
+      if (currentFrameUrl != null) {
+        final matchingFrame = combinedFrames.firstWhere(
+          (f) => f['image_url'] == currentFrameUrl,
+          orElse: () => null,
+        );
+        if (matchingFrame != null) {
+          initialSelectedId = matchingFrame['id'] ?? matchingFrame['name'];
+        }
+      }
+
+      // Fallback to table-based equipped flag if URL match failed
+      if (initialSelectedId == null) {
+        final equipped = unlocked.firstWhere(
+              (f) => f['is_equipped'] == true,
+          orElse: () => null,
+        );
+        initialSelectedId = equipped?['frame_id'];
+      }
 
       setState(() {
-        frames = allFrames;
+        frames = combinedFrames;
         userFrames = unlocked;
-        selectedFrameId = equipped?['frame_id'];
+        selectedFrameId = initialSelectedId;
         isLoading = false;
       });
     } catch (e) {
-      debugPrint("Error loading frames: $e");
-      setState(() => isLoading = false);
+      debugPrint("Error loading data: $e");
+      // Try bucket as last resort on error
+      try {
+        final bucketFrames = await _frameService.getBucketFrames();
+        setState(() {
+          frames = bucketFrames;
+          isLoading = false;
+        });
+      } catch (_) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
   bool isUnlocked(String frameId) {
+    // If it's a discovered frame (from bucket fallback), we allow it for now
+    final isDiscovered = frames.any((f) => (f['id'] == frameId || f['name'] == frameId) && f['is_discovered'] == true);
+    if (isDiscovered) return true;
+    
     return userFrames.any((f) => f['frame_id'] == frameId);
   }
 
   Future<void> onFrameTap(dynamic frame) async {
-    if (!isUnlocked(frame['id'])) {
+    final frameId = frame['id'] ?? frame['name'];
+    final imageUrl = frame['image_url'];
+
+    if (!isUnlocked(frameId)) {
       HapticFeedback.vibrate();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -63,14 +124,13 @@ class _FramesScreenState extends State<FramesScreen> {
       return;
     }
 
-    final frameId = frame['id'];
     if (selectedFrameId == frameId) return;
 
     HapticFeedback.mediumImpact();
     setState(() => selectedFrameId = frameId);
 
     try {
-      await _frameService.equipFrame(frameId);
+      await _frameService.equipFrame(frameId, imageUrl);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -146,13 +146,18 @@ class _PostCardState extends State<PostCard> {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.grey[800],
-                      backgroundImage:
-                      avatar != null ? NetworkImage(avatar) : null,
-                      child: avatar == null
-                          ? Text(initial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-                          : null,
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.grey[800],
+                          backgroundImage:
+                          avatar != null ? NetworkImage(avatar) : null,
+                          child: avatar == null
+                              ? Text(initial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                              : null,
+                        ),
+                      ],
                     ),
                     const SizedBox(width: 8),
 

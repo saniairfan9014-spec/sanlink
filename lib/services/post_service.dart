@@ -212,7 +212,7 @@ class PostService {
         .from('friends')
         .select()
         .or(
-      'and(user1_id.eq.${user.id},user2_id.eq.$otherUserId),and(user1_id.eq.$otherUserId,user2_id.eq.${user.id})',
+      'and(user1.eq.${user.id},user2.eq.$otherUserId),and(user1.eq.$otherUserId,user2.eq.${user.id})',
     )
         .maybeSingle();
 

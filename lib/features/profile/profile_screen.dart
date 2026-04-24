@@ -9,6 +9,7 @@ import 'package:sanlink/features/games/services/game_service.dart';
 import 'package:sanlink/features/chat/services/chat_service.dart';
 import 'package:sanlink/features/chat/screens/direct_chat_screen.dart';
 import 'package:sanlink/features/frames/frames_screen.dart';
+import 'package:sanlink/services/frame_service.dart';
 
 void _log(String tag, String msg) => debugPrint("[$tag] $msg");
 
@@ -42,6 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   final postService = PostService();
   final chatService = ChatService();
+  final _frameService = FrameService();
 
   List<Map<String, dynamic>> userPosts = [];
   bool loadingPosts    = true;
@@ -50,6 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   bool sendingRequest  = false;
   bool uploadingAvatar = false;
   String? avatarUrl;
+  Map<String, dynamic>? _userData;
   
   final GameService _gameService = GameService();
   List<GameStat> _gameStats = [];
@@ -61,7 +64,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    avatarUrl = widget.userData['avatar_url'];
+    _userData = widget.userData;
+    avatarUrl = _userData?['avatar_url'] ?? _userData?['profile_pic'];
     _fadeCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 600));
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOutCubic);
@@ -81,12 +85,40 @@ class _ProfileScreenState extends State<ProfileScreen>
       _loadingStats = true;
     });
     await Future.wait([
+      _fetchProfileData(),
       fetchUserPosts(), 
       checkFriendStatus(), 
       checkRequestStatus(),
       _loadGameStats(),
       _loadLevelInfo(),
     ]);
+  }
+
+  Future<void> _fetchProfileData() async {
+    final uid = widget.userData['id'] as String?;
+    if (uid == null) return;
+    try {
+      final data = await postService.supabase
+          .from('users')
+          .select('name, bio, avatar_url, profile_pic') // Removed profile_frame to avoid crash
+          .eq('id', uid)
+          .single();
+      
+      // Check local fallback for frame
+      final localFrame = await _frameService.getLocalEquippedFrame();
+      
+      if (mounted) {
+        setState(() {
+          _userData = {
+            ...data,
+            if (localFrame != null) 'profile_frame': localFrame,
+          };
+          avatarUrl = data['avatar_url'] ?? data['profile_pic'];
+        });
+      }
+    } catch (e) {
+      _log("PROFILE", "Fetch profile error: $e");
+    }
   }
 
   LevelInfo? _levelInfo;
@@ -229,13 +261,13 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    final user          = widget.userData;
+    final user          = _userData ?? widget.userData;
     final currentUserId = postService.supabase.auth.currentUser?.id;
     final isMe          = user['id'] == currentUserId;
     final name          = user['name'] ?? 'User';
     final bio           = user['bio'] as String?;
     final avatarUrl     = user['profile_pic'] ?? user['avatar_url']; // Fallback
-    final frameUrl      = user['profile_frame']; 
+    final frameUrl      = user['profile_frame']; // Will be null if column missing
     final initial       = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
     return Scaffold(
@@ -271,12 +303,13 @@ class _ProfileScreenState extends State<ProfileScreen>
               actions: [
                 if (isMe) ...[
                   IconButton(
-                    onPressed: () {
+                    onPressed: () async {
                       HapticFeedback.lightImpact();
-                      Navigator.push(
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const FramesScreen()),
                       );
+                      if (mounted) _loadAll(); // Refresh to show new frame
                     },
                     icon: const Icon(Icons.style_outlined, color: _C.textSecondary, size: 22),
                     tooltip: "Frames Collection",
