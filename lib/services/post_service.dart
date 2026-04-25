@@ -96,7 +96,7 @@ class PostService {
     try {
       final data = await supabase
           .from('posts')
-          .select('*, users(name, avatar_url, profile_pic)')
+          .select('*, users(name, avatar_url, profile_pic, selected_frame:frames(image_url))')
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
@@ -140,7 +140,7 @@ class PostService {
   Future<List<Map<String, dynamic>>> getComments(String postId) async {
     final data = await supabase
         .from('comments')
-        .select('*, users(name, avatar_url, profile_pic)')
+        .select('*, users(name, avatar_url, profile_pic, selected_frame:frames(image_url))')
         .eq('post_id', postId)
         .order('created_at', ascending: true);
     return List<Map<String, dynamic>>.from(data);
@@ -193,7 +193,7 @@ class PostService {
     try {
       final data = await supabase
           .from('posts')
-          .select('*, users(name, avatar_url, profile_pic)') // include user data
+          .select('*, users(name, avatar_url, profile_pic, selected_frame:frames(image_url))') // include user data
           .eq('user_id', userId)
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(data);

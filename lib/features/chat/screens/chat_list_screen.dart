@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sanlink/features/chat/services/chat_service.dart';
 import 'package:sanlink/features/chat/screens/direct_chat_screen.dart';
+import 'package:sanlink/widgets/profile_avatar.dart';
 
 class _C {
   static const bg = Color(0xFF0A0A0F);
@@ -95,7 +96,7 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
 
   Future<void> _acceptRequest(String requestId, String fromUserId, String name) async {
     HapticFeedback.lightImpact();
-    final chatId = await chatService.acceptRequest(requestId, fromUserId);
+    final chatId = await chatService.acceptRequest(requestId);
     
     if (mounted) {
       if (chatId != null) {
@@ -249,6 +250,8 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                                     builder: (_) => DirectChatScreen(
                                       chatId: chat['chat_id'],
                                       friendName: friendName,
+                                      friendAvatar: friend['avatar_url'],
+                                      friendFrame: chat['frame_url'],
                                     ),
                                   ),
                                 ).then((_) => _loadChats());
@@ -266,9 +269,11 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                                       ),
                                     ),
                                     padding: const EdgeInsets.all(2),
-                                    child: CircleAvatar(
-                                      backgroundColor: _C.surfaceAlt,
-                                      child: Text(friendInitial, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
+                                    child: ProfileAvatar(
+                                      avatarUrl: friend['avatar_url'],
+                                      frameUrl: chat['frame_url'],
+                                      size: 44,
+                                      name: friendName,
                                     ),
                                   ),
                                   if (isUnread)
@@ -396,9 +401,11 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                           
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            leading: CircleAvatar(
-                              backgroundColor: _C.surfaceAlt,
-                              child: Text(senderInitial, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
+                            leading: ProfileAvatar(
+                              avatarUrl: sender?['avatar_url'],
+                              frameUrl: req['frame_url'], // Ensure this is available
+                              size: 40,
+                              name: senderName,
                             ),
                             title: Text(senderName, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
                             subtitle: Text(sender['email'] ?? '', style: const TextStyle(color: _C.textSecondary)),

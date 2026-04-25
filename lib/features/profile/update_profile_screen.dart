@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sanlink/services/post_service.dart';
 import 'package:sanlink/features/games/services/game_service.dart';
+import 'package:sanlink/widgets/profile_avatar.dart';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
 class _C {
@@ -248,7 +249,14 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen>
           IconButton(
             onPressed: _save,
             icon: saving
-                ? const CircularProgressIndicator()
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                 : const Icon(Icons.check),
           )
         ],
@@ -259,34 +267,23 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen>
           padding: const EdgeInsets.all(20),
           children: [
             Center(
-              child: Stack(
-                alignment: Alignment.center,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   GestureDetector(
                     onTap: _pickAvatar,
-                    child: CircleAvatar(
-                      radius: 54,
-                      backgroundColor: _C.surfaceAlt,
-                      backgroundImage:
-                      avatarUrl != null ? NetworkImage(avatarUrl!) : null,
-                      child: avatarUrl == null
-                          ? const Icon(Icons.person, size: 40, color: _C.textSecondary)
-                          : null,
+                    child: ProfileAvatar(
+                      avatarUrl: avatarUrl,
+                      frameUrl: selectedFrameUrl,
+                      size: 130,
+                      name: _nameController.text,
                     ),
                   ),
-                  if (selectedFrameUrl != null)
-                    IgnorePointer(
-                      child: SizedBox(
-                        width: 140,
-                        height: 140,
-                        child: Image.network(
-                          selectedFrameUrl!,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
                   if (uploadingAvatar)
-                    const CircularProgressIndicator(color: _C.primary),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: CircularProgressIndicator(color: _C.primary),
+                    ),
                 ],
               ),
             ),

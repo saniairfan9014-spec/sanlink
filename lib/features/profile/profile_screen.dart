@@ -10,6 +10,7 @@ import 'package:sanlink/features/chat/services/chat_service.dart';
 import 'package:sanlink/features/chat/screens/direct_chat_screen.dart';
 import 'package:sanlink/features/frames/frames_screen.dart';
 import 'package:sanlink/services/frame_service.dart';
+import 'package:sanlink/widgets/profile_avatar.dart';
 
 void _log(String tag, String msg) => debugPrint("[$tag] $msg");
 
@@ -100,7 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     try {
       final data = await postService.supabase
           .from('users')
-          .select('name, bio, avatar_url, profile_pic') // Removed profile_frame to avoid crash
+          .select('name, bio, avatar_url, profile_pic, selected_frame:frames(image_url)')
           .eq('id', uid)
           .single();
       
@@ -267,7 +268,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final name          = user['name'] ?? 'User';
     final bio           = user['bio'] as String?;
     final avatarUrl     = user['profile_pic'] ?? user['avatar_url']; // Fallback
-    final frameUrl      = user['profile_frame']; // Will be null if column missing
+    final frameUrl      = user['selected_frame']?['image_url'] ?? user['profile_frame'];
     final initial       = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
     return Scaffold(
@@ -353,53 +354,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                             ),
                           ),
                           
-                          // Avatar
+                          // Avatar & Frame
                           GestureDetector(
                             onTap: isMe ? pickAndUploadAvatar : null,
-                            child: CircleAvatar(
-                              radius: 54,
-                              backgroundColor: _C.surfaceAlt,
-                              backgroundImage: avatarUrl != null
-                                  ? NetworkImage(avatarUrl)
-                                  : null,
-                              child: avatarUrl == null
-                                  ? Text(initial,
-                                      style: const TextStyle(
-                                          color: _C.textPrimary,
-                                          fontSize: 38,
-                                          fontWeight: FontWeight.w900))
-                                  : null,
+                            child: ProfileAvatar(
+                              avatarUrl: avatarUrl,
+                              frameUrl: frameUrl,
+                              size: 130,
+                              name: name,
                             ),
                           ),
-
-                          // Frame Overlay
-                          if (frameUrl != null)
-                            IgnorePointer(
-                              child: SizedBox(
-                                width: 140,
-                                height: 140,
-                                child: Image.network(
-                                  frameUrl,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) => const SizedBox(),
-                                ),
-                              ),
-                            )
-                          else if (isMe)
-                            // Decorative Ring for "No Frame" state
-                            IgnorePointer(
-                              child: Container(
-                                width: 116,
-                                height: 116,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: _C.primary.withOpacity(0.5),
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
 
                           // Level Badge
                           if (_levelInfo != null)
@@ -589,6 +553,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         builder: (_) => DirectChatScreen(
                                           chatId: chatId,
                                           friendName: name,
+                                          friendAvatar: avatarUrl,
+                                          friendFrame: user['selected_frame']?['image_url'],
                                         ),
                                       ),
                                     );

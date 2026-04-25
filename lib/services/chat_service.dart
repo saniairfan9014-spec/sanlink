@@ -38,7 +38,7 @@ class ChatService {
     final response = await supabase
         .from('chat_requests')
     // ✅ FIX: Use FK column name in join: 'from_user_id' → users table
-        .select('id, from_user_id, from_user:from_user_id(id, name, email)')
+        .select('id, from_user_id, from_user:from_user_id(id, name, email, avatar_url, selected_frame:frames(image_url))')
         .eq('to_user_id', me)       // ✅ correct column
         .eq('status', 'pending');
 
@@ -51,14 +51,15 @@ class ChatService {
         'name': fromUser['name'] ?? 'User',
         'email': fromUser['email'] ?? '',
         'avatar_url': fromUser['avatar_url'],
+        'frame_url': fromUser['selected_frame']?['image_url'],
       };
     }).toList();
   }
 
   /// Accept a friend request → creates chat room + adds members
-  Future<void> acceptRequest(String requestId) async {
+  Future<String?> acceptRequest(String requestId) async {
     final me = currentUserId;
-    if (me == null) return;
+    if (me == null) return null;
 
     // Get the request to find from_user_id
     final request = await supabase
@@ -89,6 +90,8 @@ class ChatService {
         .from('chat_requests')
         .update({'status': 'accepted'})
         .eq('id', requestId);
+
+    return chatId;
   }
 
   /// Reject a friend request
@@ -124,7 +127,7 @@ class ChatService {
       // Find the other member in this chat
       final otherMembers = await supabase
           .from('chat_members')
-          .select('user_id, users:user_id(id, name, avatar_url)')
+          .select('user_id, users:user_id(id, name, avatar_url, selected_frame:frames(image_url))')
           .eq('chat_id', chatId)
           .neq('user_id', me);
 
@@ -145,6 +148,7 @@ class ChatService {
         'chat_id': chatId,
         'name': otherUser['name'] ?? 'Friend',
         'avatar_url': otherUser['avatar_url'],
+        'frame_url': otherUser['selected_frame']?['image_url'],
         'last_message': lastMsgRow?['message'] ?? '',  // ✅ 'message' column
         'last_message_time': lastMsgRow?['created_at'],
       });
@@ -217,7 +221,7 @@ class ChatService {
 
     final response = await supabase
         .from('users')
-        .select('id, name, email, avatar_url')
+        .select('id, name, email, avatar_url, selected_frame:frames(image_url)')
         .ilike('name', '%$query%')
         .limit(20);
 

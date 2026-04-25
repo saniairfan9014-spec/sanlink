@@ -8,6 +8,7 @@ import 'package:sanlink/features/chat/services/chat_service.dart';
 import 'package:sanlink/services/post_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
+import 'package:sanlink/widgets/profile_avatar.dart';
 
 // 🔍 DEBUG LOGGER
 void _log(String tag, String msg) {
@@ -49,11 +50,15 @@ const _stickerEmojis = [
 class DirectChatScreen extends StatefulWidget {
   final String chatId;
   final String friendName;
+  final String? friendAvatar;
+  final String? friendFrame;
 
   const DirectChatScreen({
     super.key,
     required this.chatId,
     required this.friendName,
+    this.friendAvatar,
+    this.friendFrame,
   });
 
   @override
@@ -422,14 +427,11 @@ class _DirectChatScreenState extends State<DirectChatScreen>
         ),
         title: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: _C.surfaceAlt,
-              radius: 18,
-              child: Text(friendInitial,
-                  style: const TextStyle(
-                      color: _C.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold)),
+            ProfileAvatar(
+              avatarUrl: widget.friendAvatar,
+              frameUrl: widget.friendFrame,
+              size: 36,
+              name: widget.friendName,
             ),
             const SizedBox(width: 12),
             Expanded(

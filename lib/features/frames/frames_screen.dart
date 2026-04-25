@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sanlink/services/frame_service.dart';
+import 'package:sanlink/features/games/services/game_service.dart';
 import 'package:sanlink/core/theme/app_theme.dart';
 
 class FramesScreen extends StatefulWidget {
@@ -12,10 +13,12 @@ class FramesScreen extends StatefulWidget {
 
 class _FramesScreenState extends State<FramesScreen> {
   final FrameService _frameService = FrameService();
+  final GameService _gameService = GameService();
 
-  List frames = [];
-  List userFrames = [];
+  List<Map<String, dynamic>> frames = [];
+  List<String> unlockedFrameIds = [];
   String? selectedFrameId;
+  int userLevel = 1;
   bool isLoading = true;
 
   @override
@@ -26,93 +29,50 @@ class _FramesScreenState extends State<FramesScreen> {
 
   Future<void> loadData() async {
     try {
-      final allFrames = await _frameService.getAllFrames();
-      final unlocked = await _frameService.getUserFrames();
-      
-      // Fetch current user's equipped frame URL for selection highlighting
+      final results = await Future.wait([
+        _frameService.getAllFrames(),
+        _frameService.getUnlockedFrameIds(),
+        _gameService.getUserLevelInfo(),
+      ]);
+
+      final allFrames = results[0] as List<Map<String, dynamic>>;
+      final unlockedIds = results[1] as List<String>;
+      final levelInfo = results[2] as LevelInfo?;
+
+      // Fetch current user's equipped frame ID
       final currentUser = _frameService.client.auth.currentUser;
-      String? currentFrameUrl;
+      String? currentFrameId;
       if (currentUser != null) {
-        try {
-          final profile = await _frameService.client
-              .from('users')
-              .select('name, avatar_url, profile_pic') // Only select columns that definitely exist
-              .eq('id', currentUser.id)
-              .maybeSingle();
-          
-          if (profile != null) {
-            // Check for DB column (we already know it might fail, so we'll check local fallback)
-          }
-        } catch (e) {
-          debugPrint("Profile frame column missing in users table: $e");
-        }
-
-        // Check local storage fallback
-        currentFrameUrl = await _frameService.getLocalEquippedFrame();
-      }
-
-      // Fallback: If no frames in table, check the bucket directly
-      List<dynamic> combinedFrames = List.from(allFrames);
-      if (combinedFrames.isEmpty) {
-        final bucketFrames = await _frameService.getBucketFrames();
-        combinedFrames.addAll(bucketFrames);
-      }
-
-      // Determine selected frame ID based on either URL match or table flag
-      String? initialSelectedId;
-      if (currentFrameUrl != null) {
-        final matchingFrame = combinedFrames.firstWhere(
-          (f) => f['image_url'] == currentFrameUrl,
-          orElse: () => null,
-        );
-        if (matchingFrame != null) {
-          initialSelectedId = matchingFrame['id'] ?? matchingFrame['name'];
-        }
-      }
-
-      // Fallback to table-based equipped flag if URL match failed
-      if (initialSelectedId == null) {
-        final equipped = unlocked.firstWhere(
-              (f) => f['is_equipped'] == true,
-          orElse: () => null,
-        );
-        initialSelectedId = equipped?['frame_id'];
+        final profile = await _frameService.client
+            .from('users')
+            .select('selected_frame')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+        
+        currentFrameId = profile?['selected_frame'];
       }
 
       setState(() {
-        frames = combinedFrames;
-        userFrames = unlocked;
-        selectedFrameId = initialSelectedId;
+        frames = allFrames;
+        unlockedFrameIds = unlockedIds;
+        selectedFrameId = currentFrameId;
+        userLevel = levelInfo?.level ?? 1;
         isLoading = false;
       });
     } catch (e) {
       debugPrint("Error loading data: $e");
-      // Try bucket as last resort on error
-      try {
-        final bucketFrames = await _frameService.getBucketFrames();
-        setState(() {
-          frames = bucketFrames;
-          isLoading = false;
-        });
-      } catch (_) {
-        setState(() => isLoading = false);
-      }
+      setState(() => isLoading = false);
     }
   }
 
-  bool isUnlocked(String frameId) {
-    // If it's a discovered frame (from bucket fallback), we allow it for now
-    final isDiscovered = frames.any((f) => (f['id'] == frameId || f['name'] == frameId) && f['is_discovered'] == true);
-    if (isDiscovered) return true;
-    
-    return userFrames.any((f) => f['frame_id'] == frameId);
+  bool isUnlocked(Map<String, dynamic> frame) {
+    return _frameService.isFrameUnlocked(frame, unlockedFrameIds, userLevel);
   }
 
-  Future<void> onFrameTap(dynamic frame) async {
-    final frameId = frame['id'] ?? frame['name'];
-    final imageUrl = frame['image_url'];
+  Future<void> onFrameTap(Map<String, dynamic> frame) async {
+    final frameId = frame['id'];
 
-    if (!isUnlocked(frameId)) {
+    if (!isUnlocked(frame)) {
       HapticFeedback.vibrate();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -127,10 +87,11 @@ class _FramesScreenState extends State<FramesScreen> {
     if (selectedFrameId == frameId) return;
 
     HapticFeedback.mediumImpact();
+    final oldSelectedId = selectedFrameId;
     setState(() => selectedFrameId = frameId);
 
     try {
-      await _frameService.equipFrame(frameId, imageUrl);
+      await _frameService.equipFrame(frameId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -149,6 +110,22 @@ class _FramesScreenState extends State<FramesScreen> {
       }
     } catch (e) {
       debugPrint("Equip error: $e");
+      if (mounted) {
+        setState(() => selectedFrameId = oldSelectedId);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to equip frame. Please try again.")),
+        );
+      }
+    }
+  }
+
+  Color getRarityColor(String? rarity) {
+    switch (rarity?.toLowerCase()) {
+      case 'legendary': return const Color(0xFFFFD700); // Gold
+      case 'epic': return const Color(0xFFE040FB);      // Purple
+      case 'rare': return const Color(0xFF00E5FF);      // Cyan
+      case 'common':
+      default: return context.colors.border;
     }
   }
 
@@ -198,7 +175,7 @@ class _FramesScreenState extends State<FramesScreen> {
                     ),
                     itemBuilder: (context, index) {
                       final frame = frames[index];
-                      final unlocked = isUnlocked(frame['id']);
+                      final unlocked = isUnlocked(frame);
                       final selected = selectedFrameId == frame['id'];
 
                       return GestureDetector(
@@ -208,19 +185,19 @@ class _FramesScreenState extends State<FramesScreen> {
                             Expanded(
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 300),
-                                decoration: BoxDecoration(
-                                  color: context.colors.surface,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: selected 
-                                        ? context.colors.primary 
-                                        : (unlocked ? context.colors.border : Colors.transparent),
-                                    width: selected ? 2 : 1,
+                                  decoration: BoxDecoration(
+                                    color: context.colors.surface,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: selected 
+                                          ? context.colors.primary 
+                                          : (unlocked ? getRarityColor(frame['rarity']) : Colors.transparent),
+                                      width: selected ? 2 : 1,
+                                    ),
+                                    boxShadow: selected
+                                        ? [BoxShadow(color: context.colors.primary.withOpacity(0.3), blurRadius: 15)]
+                                        : (unlocked ? [BoxShadow(color: getRarityColor(frame['rarity']).withOpacity(0.1), blurRadius: 8)] : []),
                                   ),
-                                  boxShadow: selected
-                                      ? [BoxShadow(color: context.colors.primary.withOpacity(0.3), blurRadius: 15)]
-                                      : [],
-                                ),
                                 child: Stack(
                                   children: [
                                     Padding(

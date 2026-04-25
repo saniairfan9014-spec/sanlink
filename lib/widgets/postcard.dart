@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
-import '../services/post_service.dart';
 import 'package:sanlink/features/profile/profile_screen.dart';
-
+import 'package:sanlink/widgets/profile_avatar.dart';
+import 'package:sanlink/services/post_service.dart';
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> postData;
 
@@ -146,18 +146,11 @@ class _PostCardState extends State<PostCard> {
               children: [
                 Row(
                   children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: Colors.grey[800],
-                          backgroundImage:
-                          avatar != null ? NetworkImage(avatar) : null,
-                          child: avatar == null
-                              ? Text(initial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-                              : null,
-                        ),
-                      ],
+                    ProfileAvatar(
+                      avatarUrl: avatar,
+                      frameUrl: user?['selected_frame']?['image_url'],
+                      size: 40,
+                      name: name,
                     ),
                     const SizedBox(width: 8),
 
@@ -403,14 +396,11 @@ class _PostCardState extends State<PostCard> {
               for (var c in comments)
                 ListTile(
                   dense: true,
-                  leading: CircleAvatar(
-                    radius: 12,
-                    backgroundImage: c['users']?['avatar_url'] != null
-                        ? NetworkImage(c['users']['avatar_url'])
-                        : null,
-                    child: c['users']?['avatar_url'] == null
-                        ? const Icon(Icons.person, size: 12)
-                        : null,
+                  leading: ProfileAvatar(
+                    avatarUrl: c['users']?['avatar_url'],
+                    frameUrl: c['users']?['selected_frame']?['image_url'],
+                    size: 30,
+                    name: c['users']?['name'],
                   ),
                   title: Text(
                     c['users']?['name'] ?? 'Unknown',

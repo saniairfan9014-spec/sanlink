@@ -75,22 +75,31 @@ class ChatService {
     // ✅ FIX: Using user's confirmed join syntax for from_user
     final data = await supabase
         .from('chat_requests')
-        .select('*, from_user:from_user_id(id, name, email, avatar_url, profile_pic)')
+        .select('*, from_user:from_user_id(id, name, email, avatar_url, profile_pic, selected_frame:frames(image_url))')
         .eq('to_user_id', me)
         .eq('status', 'pending');
         
     return List<Map<String, dynamic>>.from(data);
   }
 
-  // acceptRequest(String requestId, String fromUserId)
-  Future<String?> acceptRequest(String requestId, String fromUserId) async {
+  // acceptRequest(String requestId, [String? fromUserId])
+  Future<String?> acceptRequest(String requestId, [String? fromUserId]) async {
     final me = currentUserId;
     if (me == null) return null;
     
+    String? targetUserId = fromUserId;
+    
+    // If fromUserId not provided, fetch it
+    if (targetUserId == null) {
+      final req = await supabase.from('chat_requests').select('from_user_id').eq('id', requestId).maybeSingle();
+      if (req == null) return null;
+      targetUserId = req['from_user_id'];
+    }
+
     String? roomId;
 
     // 1. Check if a chat room already exists between these two
-    final existingChatId = await getCommonChatId(me, fromUserId);
+    final existingChatId = await getCommonChatId(me, targetUserId!);
     
     if (existingChatId != null) {
       roomId = existingChatId;
@@ -105,7 +114,7 @@ class ChatService {
 
       await supabase.from('chat_members').insert([
         {'chat_id': roomId, 'user_id': me},
-        {'chat_id': roomId, 'user_id': fromUserId},
+        {'chat_id': roomId, 'user_id': targetUserId},
       ]);
 
       // 3. Update request status
@@ -161,7 +170,7 @@ class ChatService {
     // 2. Get all other members for these chats
     final others = await supabase
         .from('chat_members')
-        .select('chat_id, user_id, users(*)')
+        .select('chat_id, user_id, users(*, selected_frame:frames(image_url))')
         .filter('chat_id', 'in', chatIds)
         .neq('user_id', me);
     
@@ -198,6 +207,7 @@ class ChatService {
       chats.add({
         'chat_id': chatId,
         'friend': friend,
+        'frame_url': friend['selected_frame']?['image_url'],
         'last_message': lastMsgData,
         'unread_count': unreadCount,
       });
@@ -360,7 +370,7 @@ class ChatService {
     
     final data = await supabase
         .from('users')
-        .select('id, name, email, avatar_url, profile_pic')
+        .select('id, name, email, avatar_url, profile_pic, selected_frame:frames(image_url)')
         .ilike('name', '%${query.trim()}%')
         .neq('id', me)
         .limit(20);

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sanlink/features/chat/services/chat_service.dart';
 
+import 'package:sanlink/widgets/profile_avatar.dart';
+
 class _C {
   static const bg = Color(0xFF0A0A0F);
   static const surface = Color(0xFF13131A);
@@ -147,15 +149,16 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
                         itemBuilder: (context, index) {
                           final user = _results[index];
                           final name = user['name'] ?? 'Unknown';
-                          final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
                           final userId = user['id'];
                           final isPending = _pendingRequests.contains(userId);
 
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            leading: CircleAvatar(
-                              backgroundColor: _C.border,
-                              child: Text(initial, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
+                            leading: ProfileAvatar(
+                              avatarUrl: user['avatar_url'],
+                              frameUrl: user['selected_frame']?['image_url'],
+                              size: 40,
+                              name: name,
                             ),
                             title: Text(name, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
                             subtitle: Text(user['email'] ?? '', style: const TextStyle(color: _C.textSecondary, fontSize: 12)),

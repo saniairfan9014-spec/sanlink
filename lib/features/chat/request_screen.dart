@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sanlink/features/chat/services/chat_service.dart';
-import 'package:sanlink/features/chat/screens/direct_chat_screen.dart';
+import 'package:sanlink/widgets/profile_avatar.dart';
 
 class _C {
   static const bg = Color(0xFF0A0A0F);
@@ -54,22 +54,10 @@ class _RequestsScreenState extends State<RequestsScreen> {
 
   Future<void> _handleAccept(String requestId, String fromUserId, String name) async {
     HapticFeedback.mediumImpact();
-    final chatId = await chatService.acceptRequest(requestId, fromUserId);
+    await chatService.acceptRequest(requestId);
     
     if (mounted) {
-      if (chatId != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DirectChatScreen(
-              chatId: chatId,
-              friendName: name,
-            ),
-          ),
-        ).then((_) => fetchRequests());
-      } else {
-        fetchRequests();
-      }
+      fetchRequests();
     }
   }
 
@@ -131,9 +119,8 @@ class _RequestsScreenState extends State<RequestsScreen> {
                       itemCount: requests.length,
                       itemBuilder: (context, index) {
                         final req = requests[index];
-                        final sender = req['from_user'];
-                        final senderName = sender != null ? (sender['name'] ?? 'Unknown User') : 'Unknown User';
-                        final senderInitial = senderName.isNotEmpty ? senderName[0].toUpperCase() : '?';
+                        final sender = req['from_user'] as Map<String, dynamic>?;
+                        final senderName = sender?['name'] ?? 'Unknown User';
                         
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -148,12 +135,14 @@ class _RequestsScreenState extends State<RequestsScreen> {
                               filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                               child: ListTile(
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                leading: CircleAvatar(
-                                  backgroundColor: _C.surfaceAlt,
-                                  child: Text(senderInitial, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
+                                leading: ProfileAvatar(
+                                  avatarUrl: sender?['avatar_url'] ?? sender?['profile_pic'],
+                                  frameUrl: sender?['selected_frame']?['image_url'],
+                                  size: 40,
+                                  name: senderName,
                                 ),
                                 title: Text(senderName, style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.bold)),
-                                subtitle: Text(sender['email'] ?? '', style: const TextStyle(color: _C.textSecondary, fontSize: 12)),
+                                subtitle: Text(sender?['email'] ?? '', style: const TextStyle(color: _C.textSecondary, fontSize: 12)),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [

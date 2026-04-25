@@ -5,88 +5,97 @@ class FrameService {
   final SupabaseClient _client = Supabase.instance.client;
   SupabaseClient get client => _client;
 
-  /// Fetch all frames
-  Future<List<dynamic>> getAllFrames() async {
-    final response = await _client
-        .from('frames')
-        .select()
-        .order('required_level', ascending: true);
+  /// Fetch all available frames
+  Future<List<Map<String, dynamic>>> getAllFrames() async {
+    try {
+      final response = await _client
+          .from('frames')
+          .select()
+          .eq('is_active', true)
+          .order('required_level', ascending: true);
 
-    return response;
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print("Error fetching all frames: $e");
+      return [];
+    }
   }
 
   /// Fetch user's unlocked frames
-  Future<List<dynamic>> getUserFrames() async {
-    final response = await _client
-        .from('user_frames')
-        .select();
+  Future<List<String>> getUnlockedFrameIds() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return [];
 
-    return response;
-  }
-
-  /// List frames directly from storage bucket (Discovery mode)
-  Future<List<Map<String, dynamic>>> getBucketFrames() async {
     try {
-      final List<FileObject> files = await _client
-          .storage
-          .from('frames')
-          .list();
+      final response = await _client
+          .from('user_frames')
+          .select('frame_id')
+          .eq('user_id', user.id);
 
-      return files.map((file) {
-        final publicUrl = _client.storage.from('frames').getPublicUrl(file.name);
-        return {
-          'id': file.id ?? file.name,
-          'name': file.name.split('.').first.replaceAll('_', ' ').toUpperCase(),
-          'image_url': publicUrl,
-          'required_level': 0, // Default to 0 for discovered frames
-          'is_discovered': true,
-        };
-      }).toList();
+      return (response as List).map((f) => f['frame_id'] as String).toList();
     } catch (e) {
-      print("Error listing bucket frames: $e");
+      print("Error fetching user frames: $e");
       return [];
     }
   }
 
   /// Equip a frame
-  Future<void> equipFrame(String frameId, String imageUrl) async {
+  Future<void> equipFrame(String frameId) async {
     final user = _client.auth.currentUser;
     if (user == null) return;
 
     try {
-      // 1. Save locally as fallback (VERY IMPORTANT since DB columns might be missing)
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('local_frame_${user.id}', imageUrl);
-      
-      // 2. Update the users table for immediate UI reflection (try, but don't fail if column missing)
-      try {
-        await _client.from('users').update({
-          'profile_frame': imageUrl,
-        }).eq('id', user.id);
-      } catch (e) {
-        print("Column profile_frame might be missing: $e");
-      }
+      // 1. Reset all frames for this user in user_frames
+      await _client
+          .from('user_frames')
+          .update({'is_equipped': false})
+          .eq('user_id', user.id);
 
-      // 3. Try calling RPC if it exists (for backend logic like stats)
-      try {
-        await _client.rpc(
-          'equip_frame',
-          params: {'p_frame_id': frameId},
-        );
-      } catch (e) {
-        print("RPC equip_frame not found or failed, skipping... ($e)");
+      // 2. Set the selected frame as equipped in user_frames
+      await _client
+          .from('user_frames')
+          .update({'is_equipped': true})
+          .eq('user_id', user.id)
+          .eq('frame_id', frameId);
+
+      // 3. Update the users table for global access
+      await _client
+          .from('users')
+          .update({'selected_frame': frameId})
+          .eq('id', user.id);
+      
+      print("Frame $frameId equipped successfully ✅");
+      
+      // 4. Cache locally for better UX
+      final prefs = await SharedPreferences.getInstance();
+      final frameData = await _client.from('frames').select('image_url').eq('id', frameId).maybeSingle();
+      if (frameData != null) {
+        await prefs.setString('equipped_frame_url_${user.id}', frameData['image_url']);
       }
     } catch (e) {
-      print("Error in equipFrame process: $e");
-      // Don't rethrow to avoid crashing the UI if discovery mode is active
+      print("Error in equipFrame: $e");
+      throw e;
     }
   }
 
-  /// Get locally equipped frame URL
+  /// Get locally cached frame URL
   Future<String?> getLocalEquippedFrame() async {
     final user = _client.auth.currentUser;
     if (user == null) return null;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('local_frame_${user.id}');
+    return prefs.getString('equipped_frame_url_${user.id}');
+  }
+
+  /// Check if user has unlocked a frame (basic frames are always unlocked)
+  bool isFrameUnlocked(Map<String, dynamic> frame, List<String> unlockedIds, int userLevel) {
+    final id = frame['id'];
+    final rarity = frame['rarity']?.toString().toLowerCase();
+    final reqLevel = frame['required_level'] ?? 1;
+
+    // Common frames or level 1 frames are basic
+    if (rarity == 'common' || reqLevel <= 1) return true;
+    
+    // Check if it's in the unlocked list
+    return unlockedIds.contains(id) || userLevel >= reqLevel;
   }
 }
