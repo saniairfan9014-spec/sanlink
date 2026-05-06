@@ -1,9 +1,8 @@
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sanlink/core/theme/app_theme.dart';
 import 'package:sanlink/features/chat/services/chat_service.dart';
 import 'package:sanlink/services/post_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -15,36 +14,87 @@ void _log(String tag, String msg) {
   debugPrint("[$tag] $msg");
 }
 
-class _C {
-  static const bg = Color(0xFF0A0A0F);
-  static const surface = Color(0xFF13131A);
-  static const surfaceAlt = Color(0xFF1C1C27);
-  static const border = Color(0xFF2A2A3D);
-  static const primary = Color(0xFF7C5CFC);
-  static const primaryGlow = Color(0x337C5CFC);
-  static const accent = Color(0xFF00E5FF);
-  static const textPrimary = Color(0xFFF0F0FF);
-  static const textSecondary = Color(0xFF8888AA);
-  static const textMuted = Color(0xFF44445A);
-  static const green = Color(0xFF00E676);
-  static const red = Color(0xFFFF4757);
-}
+// Theme helper - provides colors for private widgets that can't use context.colors
+AppColorsExtension _colors(BuildContext context) => context.colors;
 
 // ─── Common Emojis ────────────────────────────────────────────
 const _quickEmojis = [
-  '😀', '😂', '🥰', '😎', '🤔', '😢', '🔥', '❤️',
-  '👍', '👎', '🎉', '🙏', '💯', '✨', '😈', '💀',
-  '🤣', '😍', '🥺', '😤', '🤗', '😴', '🤩', '😭',
-  '👏', '🙌', '💪', '🤝', '✌️', '🤞', '🫶', '💔',
-  '💥', '⭐', '🌟', '💫', '🎯', '🏆', '🎮', '🕹️',
+  '😀',
+  '😂',
+  '🥰',
+  '😎',
+  '🤔',
+  '😢',
+  '🔥',
+  '❤️',
+  '👍',
+  '👎',
+  '🎉',
+  '🙏',
+  '💯',
+  '✨',
+  '😈',
+  '💀',
+  '🤣',
+  '😍',
+  '🥺',
+  '😤',
+  '🤗',
+  '😴',
+  '🤩',
+  '😭',
+  '👏',
+  '🙌',
+  '💪',
+  '🤝',
+  '✌️',
+  '🤞',
+  '🫶',
+  '💔',
+  '💥',
+  '⭐',
+  '🌟',
+  '💫',
+  '🎯',
+  '🏆',
+  '🎮',
+  '🕹️',
 ];
 
 // ─── Sticker Packs ────────────────────────────────────────────
 const _stickerEmojis = [
-  '🐶', '🐱', '🐻', '🦊', '🐼', '🐨', '🦁', '🐸',
-  '🐵', '🦄', '🐲', '👻', '🤖', '👽', '🎃', '💩',
-  '🌈', '🌸', '🍕', '🍔', '🎂', '🍦', '☕', '🍿',
-  '⚽', '🏀', '🎸', '🎤', '🚀', '💎', '🗡️', '🛡️',
+  '🐶',
+  '🐱',
+  '🐻',
+  '🦊',
+  '🐼',
+  '🐨',
+  '🦁',
+  '🐸',
+  '🐵',
+  '🦄',
+  '🐲',
+  '👻',
+  '🤖',
+  '👽',
+  '🎃',
+  '💩',
+  '🌈',
+  '🌸',
+  '🍕',
+  '🍔',
+  '🎂',
+  '🍦',
+  '☕',
+  '🍿',
+  '⚽',
+  '🏀',
+  '🎸',
+  '🎤',
+  '🚀',
+  '💎',
+  '🗡️',
+  '🛡️',
 ];
 
 class DirectChatScreen extends StatefulWidget {
@@ -53,7 +103,7 @@ class DirectChatScreen extends StatefulWidget {
   final String? friendAvatar;
   final String? friendFrame;
 
-  const DirectChatScreen({
+  DirectChatScreen({
     super.key,
     required this.chatId,
     required this.friendName,
@@ -93,7 +143,7 @@ class _DirectChatScreenState extends State<DirectChatScreen>
 
     _panelAnimCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 280),
+      duration: Duration(milliseconds: 280),
     );
     _panelAnim = CurvedAnimation(
       parent: _panelAnimCtrl,
@@ -105,32 +155,30 @@ class _DirectChatScreenState extends State<DirectChatScreen>
 
     _log("REALTIME", "Subscribing to messages...");
 
-    _messageChannel =
-        chatService.subscribeToMessages(widget.chatId, (newMsg) {
-          _log("REALTIME_EVENT", "New payload: $newMsg");
+    _messageChannel = chatService.subscribeToMessages(widget.chatId, (newMsg) {
+      _log("REALTIME_EVENT", "New payload: $newMsg");
 
-          if (mounted) {
-            setState(() {
-              final index =
-              _messages.indexWhere((m) => m['id'] == newMsg['id']);
+      if (mounted) {
+        setState(() {
+          final index = _messages.indexWhere((m) => m['id'] == newMsg['id']);
 
-              if (index != -1) {
-                _log("UPDATE", "Updating existing message: ${newMsg['id']}");
-                _messages[index] = newMsg;
-              } else {
-                _log("INSERT", "Adding new message: ${newMsg['id']}");
-                _messages.add(newMsg);
-              }
-            });
-
-            _scrollToBottom();
-            
-            // Mark as read if the message is from friend
-            if (newMsg['sender_id'] != chatService.currentUserId) {
-              _markRead();
-            }
+          if (index != -1) {
+            _log("UPDATE", "Updating existing message: ${newMsg['id']}");
+            _messages[index] = newMsg;
+          } else {
+            _log("INSERT", "Adding new message: ${newMsg['id']}");
+            _messages.add(newMsg);
           }
         });
+
+        _scrollToBottom();
+
+        // Mark as read if the message is from friend
+        if (newMsg['sender_id'] != chatService.currentUserId) {
+          _markRead();
+        }
+      }
+    });
   }
 
   Future<void> _markRead() async {
@@ -183,7 +231,7 @@ class _DirectChatScreenState extends State<DirectChatScreen>
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          duration: Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
@@ -327,7 +375,8 @@ class _DirectChatScreenState extends State<DirectChatScreen>
 
     try {
       final fileName = file.name.toLowerCase();
-      final isVideoFile = fileName.endsWith('.mp4') ||
+      final isVideoFile =
+          fileName.endsWith('.mp4') ||
           fileName.endsWith('.mov') ||
           fileName.endsWith('.avi') ||
           fileName.endsWith('.webm') ||
@@ -394,8 +443,10 @@ class _DirectChatScreenState extends State<DirectChatScreen>
   }
 
   String _getMediaUrl(String msg) {
-    if (msg.startsWith('[media:image]')) return msg.replaceFirst('[media:image]', '');
-    if (msg.startsWith('[media:video]')) return msg.replaceFirst('[media:video]', '');
+    if (msg.startsWith('[media:image]'))
+      return msg.replaceFirst('[media:image]', '');
+    if (msg.startsWith('[media:video]'))
+      return msg.replaceFirst('[media:video]', '');
     return msg;
   }
 
@@ -410,19 +461,23 @@ class _DirectChatScreenState extends State<DirectChatScreen>
 
   @override
   Widget build(BuildContext context) {
-    final friendInitial =
-    widget.friendName.isNotEmpty ? widget.friendName[0].toUpperCase() : '?';
+    final friendInitial = widget.friendName.isNotEmpty
+        ? widget.friendName[0].toUpperCase()
+        : '?';
 
     final me = chatService.currentUserId;
 
     return Scaffold(
-      backgroundColor: _C.bg,
+      backgroundColor: _colors(context).bg,
       appBar: AppBar(
-        backgroundColor: _C.surface,
+        backgroundColor: _colors(context).surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: _C.textPrimary, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: _colors(context).textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -433,14 +488,15 @@ class _DirectChatScreenState extends State<DirectChatScreen>
               size: 36,
               name: widget.friendName,
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Text(
                 widget.friendName,
-                style: const TextStyle(
-                    color: _C.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: _colors(context).textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -454,161 +510,176 @@ class _DirectChatScreenState extends State<DirectChatScreen>
             // ─── Messages List ──────────────────────────
             Expanded(
               child: _isLoading
-                  ? const Center(
-                  child:
-                  CircularProgressIndicator(color: _C.primary))
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: _colors(context).primary,
+                      ),
+                    )
                   : _messages.isEmpty
-                  ? const Center(
-                child: Text(
-                  'Say hi! 👋',
-                  style: TextStyle(
-                      color: _C.textSecondary, fontSize: 16),
-                ),
-              )
+                  ? Center(
+                      child: Text(
+                        'Say hi! 👋',
+                        style: TextStyle(
+                          color: _colors(context).textSecondary,
+                          fontSize: 16,
+                        ),
+                      ),
+                    )
                   : ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 20),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final msg = _messages[index];
-                  final isSystem = msg['sender_id'] == null;
-                  final isMe = !isSystem && msg['sender_id'] == me;
-                  final msgText = msg['message'] ?? '';
+                      controller: _scrollController,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 20,
+                      ),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = _messages[index];
+                        final isSystem = msg['sender_id'] == null;
+                        final isMe = !isSystem && msg['sender_id'] == me;
+                        final msgText = msg['message'] ?? '';
 
-                  if (isSystem) {
-                    return Center(
-                      child: _SystemMessage(message: msgText),
-                    );
-                  }
+                        if (isSystem) {
+                          return Center(
+                            child: _SystemMessage(message: msgText),
+                          );
+                        }
 
-                  // ── Media Message ──
-                  if (_isMediaMessage(msgText)) {
-                    final mediaType = _getMediaType(msgText);
-                    final mediaUrl = _getMediaUrl(msgText);
-                    return Align(
-                      alignment: isMe
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        constraints: BoxConstraints(
-                          maxWidth:
-                          MediaQuery.of(context).size.width * 0.7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isMe ? _C.primary.withOpacity(0.15) : _C.surfaceAlt,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isMe
-                                ? _C.primary.withOpacity(0.3)
-                                : _C.border,
-                          ),
-                        ),
-                        clipBehavior: Clip.hardEdge,
-                        child: mediaType == 'image'
-                            ? Image.network(
-                          mediaUrl,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (_, child, progress) {
-                            if (progress == null) return child;
-                            return const SizedBox(
-                              height: 150,
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: _C.primary,
+                        // ── Media Message ──
+                        if (_isMediaMessage(msgText)) {
+                          final mediaType = _getMediaType(msgText);
+                          final mediaUrl = _getMediaUrl(msgText);
+                          return Align(
+                            alignment: isMe
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              margin: EdgeInsets.only(bottom: 12),
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.7,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isMe
+                                    ? _colors(context).primary.withOpacity(0.15)
+                                    : _colors(context).surfaceAlt,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isMe
+                                      ? _colors(
+                                          context,
+                                        ).primary.withOpacity(0.3)
+                                      : _colors(context).border,
                                 ),
                               ),
-                            );
-                          },
-                          errorBuilder: (_, __, ___) =>
-                          const SizedBox(
-                            height: 100,
-                            child: Center(
-                              child: Icon(
-                                Icons.broken_image_rounded,
-                                color: _C.textMuted,
-                                size: 32,
+                              clipBehavior: Clip.hardEdge,
+                              child: mediaType == 'image'
+                                  ? Image.network(
+                                      mediaUrl,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (_, child, progress) {
+                                        if (progress == null) return child;
+                                        return SizedBox(
+                                          height: 150,
+                                          child: Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: _colors(context).primary,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder: (_, __, ___) => SizedBox(
+                                        height: 100,
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.broken_image_rounded,
+                                            color: _colors(context).textMuted,
+                                            size: 32,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : _ChatVideoPlayer(url: mediaUrl),
+                            ),
+                          );
+                        }
+
+                        // ── Sticker (big emoji) ──
+                        if (_isStickerMessage(msgText)) {
+                          return Align(
+                            alignment: isMe
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Padding(
+                              padding: EdgeInsets.only(bottom: 12),
+                              child: Text(
+                                msgText,
+                                style: TextStyle(fontSize: 56),
+                              ),
+                            ),
+                          );
+                        }
+
+                        // ── Normal Text Message ──
+                        return Align(
+                          alignment: isMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            margin: EdgeInsets.only(bottom: 12),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isMe
+                                  ? _colors(context).primary
+                                  : _colors(context).surfaceAlt,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                topRight: Radius.circular(16),
+                                bottomLeft: Radius.circular(isMe ? 16 : 4),
+                                bottomRight: Radius.circular(isMe ? 4 : 16),
+                              ),
+                            ),
+                            child: Text(
+                              msgText,
+                              style: TextStyle(
+                                color: _colors(context).textPrimary,
+                                fontSize: 15,
+                                height: 1.4,
                               ),
                             ),
                           ),
-                        )
-                            : _ChatVideoPlayer(url: mediaUrl),
-                      ),
-                    );
-                  }
-
-                  // ── Sticker (big emoji) ──
-                  if (_isStickerMessage(msgText)) {
-                    return Align(
-                      alignment: isMe
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          msgText,
-                          style: const TextStyle(fontSize: 56),
-                        ),
-                      ),
-                    );
-                  }
-
-                  // ── Normal Text Message ──
-                  return Align(
-                    alignment: isMe
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      constraints: BoxConstraints(
-                        maxWidth:
-                        MediaQuery.of(context).size.width * 0.75,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isMe ? _C.primary : _C.surfaceAlt,
-                        borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(16),
-                          topRight: const Radius.circular(16),
-                          bottomLeft: Radius.circular(isMe ? 16 : 4),
-                          bottomRight: Radius.circular(isMe ? 4 : 16),
-                        ),
-                      ),
-                      child: Text(
-                        msgText,
-                        style: const TextStyle(
-                          color: _C.textPrimary,
-                          fontSize: 15,
-                          height: 1.4,
-                        ),
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
 
             // ── Upload indicator ──
             if (_isUploading)
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: _C.primary),
+                        strokeWidth: 2,
+                        color: _colors(context).primary,
+                      ),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Text(
                       'Uploading media...',
                       style: TextStyle(
-                        color: _C.textSecondary,
+                        color: _colors(context).textSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -624,18 +695,14 @@ class _DirectChatScreenState extends State<DirectChatScreen>
             if (_showEmojiPanel)
               SizeTransition(
                 sizeFactor: _panelAnim,
-                child: _EmojiPanel(
-                  onEmojiTap: _insertEmoji,
-                ),
+                child: _EmojiPanel(onEmojiTap: _insertEmoji),
               ),
 
             // ─── Sticker Panel ──────────────────────────
             if (_showStickerPanel)
               SizeTransition(
                 sizeFactor: _panelAnim,
-                child: _StickerPanel(
-                  onStickerTap: _sendSticker,
-                ),
+                child: _StickerPanel(onStickerTap: _sendSticker),
               ),
           ],
         ),
@@ -645,10 +712,12 @@ class _DirectChatScreenState extends State<DirectChatScreen>
 
   Widget _buildInputBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: const BoxDecoration(
-        color: _C.surface,
-        border: Border(top: BorderSide(color: _C.border, width: 0.5)),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: _colors(context).surface,
+        border: Border(
+          top: BorderSide(color: _colors(context).border, width: 0.5),
+        ),
       ),
       child: SafeArea(
         top: false,
@@ -659,23 +728,25 @@ class _DirectChatScreenState extends State<DirectChatScreen>
               icon: _showEmojiPanel
                   ? Icons.keyboard_rounded
                   : Icons.emoji_emotions_outlined,
-              color: _showEmojiPanel ? _C.primary : _C.textSecondary,
+              color: _showEmojiPanel
+                  ? _colors(context).primary
+                  : _colors(context).textSecondary,
               onTap: _toggleEmojiPanel,
             ),
 
             // ── Text Field ──
             Expanded(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: _C.surfaceAlt,
+                  color: _colors(context).surfaceAlt,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: _C.border),
+                  border: Border.all(color: _colors(context).border),
                 ),
                 child: TextField(
                   controller: _msgController,
-                  style: const TextStyle(
-                    color: _C.textPrimary,
+                  style: TextStyle(
+                    color: _colors(context).textPrimary,
                     fontSize: 15,
                   ),
                   onSubmitted: (_) => _sendMessage(),
@@ -683,10 +754,10 @@ class _DirectChatScreenState extends State<DirectChatScreen>
                   maxLines: 4,
                   minLines: 1,
                   textInputAction: TextInputAction.send,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Type a message...',
                     hintStyle: TextStyle(
-                      color: _C.textMuted,
+                      color: _colors(context).textMuted,
                       fontSize: 15,
                     ),
                     border: InputBorder.none,
@@ -700,21 +771,23 @@ class _DirectChatScreenState extends State<DirectChatScreen>
             // ── Sticker toggle ──
             _InputIconBtn(
               icon: Icons.sticky_note_2_outlined,
-              color: _showStickerPanel ? _C.primary : _C.textSecondary,
+              color: _showStickerPanel
+                  ? _colors(context).primary
+                  : _colors(context).textSecondary,
               onTap: _toggleStickerPanel,
             ),
 
             // ── Attachment / Media ──
             _InputIconBtn(
               icon: Icons.attach_file_rounded,
-              color: _C.textSecondary,
+              color: _colors(context).textSecondary,
               onTap: _showMediaOptions,
             ),
 
             // ── Camera ──
             _InputIconBtn(
               icon: Icons.camera_alt_outlined,
-              color: _C.textSecondary,
+              color: _colors(context).textSecondary,
               onTap: () => _pickAndSendMedia(isVideo: false, fromCamera: true),
             ),
 
@@ -724,14 +797,13 @@ class _DirectChatScreenState extends State<DirectChatScreen>
               child: Container(
                 width: 40,
                 height: 40,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
-                    colors: [_C.primary, Color(0xFF9B7BFF)],
+                    colors: [_colors(context).primary, Color(0xFF9B7BFF)],
                   ),
                 ),
-                child: const Icon(Icons.send_rounded,
-                    color: Colors.white, size: 18),
+                child: Icon(Icons.send_rounded, color: Colors.white, size: 18),
               ),
             ),
           ],
@@ -747,18 +819,14 @@ class _InputIconBtn extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
-  const _InputIconBtn({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
+  _InputIconBtn({required this.icon, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        padding: EdgeInsets.symmetric(horizontal: 4),
         child: Icon(icon, color: color, size: 24),
       ),
     );
@@ -768,25 +836,27 @@ class _InputIconBtn extends StatelessWidget {
 // ─── Emoji Panel ──────────────────────────────────────────────
 class _EmojiPanel extends StatelessWidget {
   final ValueChanged<String> onEmojiTap;
-  const _EmojiPanel({required this.onEmojiTap});
+  _EmojiPanel({required this.onEmojiTap});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 260,
-      decoration: const BoxDecoration(
-        color: _C.surface,
-        border: Border(top: BorderSide(color: _C.border, width: 0.5)),
+      decoration: BoxDecoration(
+        color: _colors(context).surface,
+        border: Border(
+          top: BorderSide(color: _colors(context).border, width: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Text(
               'EMOJIS',
               style: TextStyle(
-                color: _C.textMuted,
+                color: _colors(context).textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.5,
@@ -795,8 +865,8 @@ class _EmojiPanel extends StatelessWidget {
           ),
           Expanded(
             child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 8,
                 mainAxisSpacing: 4,
                 crossAxisSpacing: 4,
@@ -808,7 +878,7 @@ class _EmojiPanel extends StatelessWidget {
                   child: Center(
                     child: Text(
                       _quickEmojis[i],
-                      style: const TextStyle(fontSize: 28),
+                      style: TextStyle(fontSize: 28),
                     ),
                   ),
                 );
@@ -824,25 +894,27 @@ class _EmojiPanel extends StatelessWidget {
 // ─── Sticker Panel ────────────────────────────────────────────
 class _StickerPanel extends StatelessWidget {
   final ValueChanged<String> onStickerTap;
-  const _StickerPanel({required this.onStickerTap});
+  _StickerPanel({required this.onStickerTap});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 260,
-      decoration: const BoxDecoration(
-        color: _C.surface,
-        border: Border(top: BorderSide(color: _C.border, width: 0.5)),
+      decoration: BoxDecoration(
+        color: _colors(context).surface,
+        border: Border(
+          top: BorderSide(color: _colors(context).border, width: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Text(
               'STICKERS',
               style: TextStyle(
-                color: _C.textMuted,
+                color: _colors(context).textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.5,
@@ -851,8 +923,8 @@ class _StickerPanel extends StatelessWidget {
           ),
           Expanded(
             child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 6,
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
@@ -863,14 +935,14 @@ class _StickerPanel extends StatelessWidget {
                   onTap: () => onStickerTap(_stickerEmojis[i]),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: _C.surfaceAlt,
+                      color: _colors(context).surfaceAlt,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: _C.border),
+                      border: Border.all(color: _colors(context).border),
                     ),
                     child: Center(
                       child: Text(
                         _stickerEmojis[i],
-                        style: const TextStyle(fontSize: 32),
+                        style: TextStyle(fontSize: 32),
                       ),
                     ),
                   ),
@@ -890,7 +962,7 @@ class _MediaOptionsSheet extends StatelessWidget {
   final VoidCallback onPickVideo;
   final VoidCallback onCamera;
 
-  const _MediaOptionsSheet({
+  _MediaOptionsSheet({
     required this.onPickImage,
     required this.onPickVideo,
     required this.onCamera,
@@ -899,53 +971,53 @@ class _MediaOptionsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _C.surface,
+        color: _colors(context).surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _C.border),
+        border: Border.all(color: _colors(context).border),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Container(
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: _C.border,
+              color: _colors(context).border,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
+          SizedBox(height: 16),
+          Text(
             'Share Media',
             style: TextStyle(
-              color: _C.textPrimary,
+              color: _colors(context).textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _MediaOptionTile(
             icon: Icons.photo_library_rounded,
-            iconColor: _C.primary,
+            iconColor: _colors(context).primary,
             title: 'Photo from Gallery',
             onTap: onPickImage,
           ),
           _MediaOptionTile(
             icon: Icons.videocam_rounded,
-            iconColor: _C.accent,
+            iconColor: _colors(context).accent,
             title: 'Video from Gallery',
             onTap: onPickVideo,
           ),
           _MediaOptionTile(
             icon: Icons.camera_alt_rounded,
-            iconColor: _C.green,
+            iconColor: _colors(context).green,
             title: 'Take a Photo',
             onTap: onCamera,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
         ],
       ),
     );
@@ -958,7 +1030,7 @@ class _MediaOptionTile extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
 
-  const _MediaOptionTile({
+  _MediaOptionTile({
     required this.icon,
     required this.iconColor,
     required this.title,
@@ -980,15 +1052,15 @@ class _MediaOptionTile extends StatelessWidget {
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          color: _C.textPrimary,
+        style: TextStyle(
+          color: _colors(context).textPrimary,
           fontWeight: FontWeight.w600,
           fontSize: 14,
         ),
       ),
-      trailing: const Icon(
+      trailing: Icon(
         Icons.arrow_forward_ios_rounded,
-        color: _C.textMuted,
+        color: _colors(context).textMuted,
         size: 16,
       ),
     );
@@ -998,7 +1070,7 @@ class _MediaOptionTile extends StatelessWidget {
 // ─── Chat Video Player ────────────────────────────────────────
 class _ChatVideoPlayer extends StatefulWidget {
   final String url;
-  const _ChatVideoPlayer({required this.url});
+  _ChatVideoPlayer({required this.url});
 
   @override
   State<_ChatVideoPlayer> createState() => _ChatVideoPlayerState();
@@ -1026,10 +1098,13 @@ class _ChatVideoPlayerState extends State<_ChatVideoPlayer> {
   @override
   Widget build(BuildContext context) {
     if (!_initialized) {
-      return const SizedBox(
+      return SizedBox(
         height: 150,
         child: Center(
-          child: CircularProgressIndicator(strokeWidth: 2, color: _C.primary),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: _colors(context).primary,
+          ),
         ),
       );
     }
@@ -1054,8 +1129,11 @@ class _ChatVideoPlayerState extends State<_ChatVideoPlayer> {
                 color: Colors.black.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.play_arrow_rounded,
-                  color: Colors.white, size: 32),
+              child: Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
             ),
         ],
       ),
@@ -1066,28 +1144,34 @@ class _ChatVideoPlayerState extends State<_ChatVideoPlayer> {
 // ─── System Message ───────────────────────────────────────────
 class _SystemMessage extends StatelessWidget {
   final String message;
-  const _SystemMessage({required this.message});
+  _SystemMessage({required this.message});
 
   @override
   Widget build(BuildContext context) {
     final lower = message.toLowerCase();
     final isWarning = lower.contains('warning') || lower.contains('alert');
-    
+
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: isWarning ? _C.red.withOpacity(0.1) : _C.surfaceAlt.withOpacity(0.3),
+        color: isWarning
+            ? _colors(context).red.withOpacity(0.1)
+            : _colors(context).surfaceAlt.withOpacity(0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isWarning ? _C.red.withOpacity(0.3) : _C.border.withOpacity(0.2),
+          color: isWarning
+              ? _colors(context).red.withOpacity(0.3)
+              : _colors(context).border.withOpacity(0.2),
         ),
       ),
       child: Text(
         message,
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: isWarning ? _C.red : _C.textSecondary,
+          color: isWarning
+              ? _colors(context).red
+              : _colors(context).textSecondary,
           fontSize: 12,
           fontWeight: isWarning ? FontWeight.bold : FontWeight.normal,
           fontStyle: isWarning ? FontStyle.normal : FontStyle.italic,

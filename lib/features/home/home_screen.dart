@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_animations.dart';
 import 'package:flutter/services.dart';
 import '../../services/supabase_service.dart';
 import '../../services/post_service.dart';
 import 'package:sanlink/widgets/postcard.dart';
+import 'package:sanlink/widgets/shimmer_loading.dart';
+import 'package:sanlink/widgets/glass_card.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sanlink/features/chat/screens/chat_list_screen.dart';
 import '../games/games_screen.dart';
@@ -15,8 +18,6 @@ import 'package:flutter/foundation.dart';
 import 'package:sanlink/features/home/notifications_screen.dart';
 import 'package:sanlink/features/games/services/game_service.dart';
 import 'package:sanlink/features/chat/services/chat_service.dart';
-
-// ─── Design Tokens ────────────────────────────────────────────────────────────
 
 
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
@@ -230,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen>
         // Posts
         Expanded(
           child: loading
-              ? _LoadingFeed()
+              ? const ShimmerFeedLoading(count: 4)
               : posts.isEmpty
               ? _EmptyFeed()
               : RefreshIndicator(
@@ -639,34 +640,7 @@ class _AnimatedPostCardState extends State<_AnimatedPostCard>
   }
 }
 
-// ─── Loading State ────────────────────────────────────────────────────────────
-class _LoadingFeed extends StatelessWidget {
-  _LoadingFeed();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(context.colors.primary),
-            ),
-          ),
-          SizedBox(height: 12),
-          Text(
-            'Loading the arena...',
-            style: TextStyle(color: context.colors.textMuted, fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// Loading state now uses ShimmerFeedLoading from widgets/shimmer_loading.dart
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 class _EmptyFeed extends StatelessWidget {
