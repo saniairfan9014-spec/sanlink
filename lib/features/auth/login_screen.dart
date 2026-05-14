@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import 'signup_screen.dart';
 import '../home/home_screen.dart';
+import '../../core/theme/app_theme.dart';
 
 class _C {
   static const bg = Color(0xFF0A0A0F);
@@ -333,21 +334,23 @@ class _CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    
     return Container(
       decoration: BoxDecoration(
-        color: _C.surfaceAlt,
+        color: colors.surfaceAlt,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _C.border),
+        border: Border.all(color: colors.border),
       ),
       child: TextField(
         controller: controller,
         obscureText: obscureText,
         keyboardType: keyboardType,
-        style: const TextStyle(color: _C.textPrimary, fontSize: 15),
+        style: TextStyle(color: colors.textPrimary, fontSize: 15),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: const TextStyle(color: _C.textMuted, fontSize: 14),
-          prefixIcon: Icon(icon, color: _C.textSecondary, size: 20),
+          hintStyle: TextStyle(color: colors.textMuted, fontSize: 14),
+          prefixIcon: Icon(icon, color: colors.textSecondary, size: 20),
           suffixIcon: suffixIcon,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

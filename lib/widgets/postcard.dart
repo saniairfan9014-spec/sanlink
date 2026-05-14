@@ -162,6 +162,8 @@ class _PostCardState extends State<PostCard>
     }
   }
 
+  bool _isPlayingAudio = false;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -174,36 +176,42 @@ class _PostCardState extends State<PostCard>
     final frameUrl = user?['selected_frame']?['image_url'];
     final timeStr = _formatTime(widget.postData['created_at']?.toString());
 
-    return Padding(
+    final isText = mediaType == null || mediaType == '';
+    final isPhoto = mediaType == 'image';
+    final isVideo = mediaType == 'video';
+    final isAudio = mediaType == 'audio';
+
+    Widget badge = const SizedBox();
+    if (isText) badge = _buildBadge("📝 Text", const Color(0xFF6C63FF));
+    else if (isPhoto) badge = _buildBadge("📷 Photo", Colors.green);
+    else if (isVideo) badge = _buildBadge("🎬 Video", Colors.blue);
+    else if (isAudio) badge = _buildBadge("🎵 Audio", Colors.amber);
+
+    return Container(
+      decoration: isText ? const BoxDecoration(
+        border: Border(left: BorderSide(color: Color(0xFF6C63FF), width: 3)),
+      ) : null,
       padding: const EdgeInsets.all(Spacing.base),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ─── USER ROW ──────────────────────────────────
-          _buildUserRow(colors, name, avatar, frameUrl, timeStr),
+          // ─── USER ROW + BADGE ─────────────────────────
+          _buildUserRow(colors, name, avatar, frameUrl, timeStr, badge),
 
-          // ─── CONTENT ───────────────────────────────────
-          if (widget.postData['content'] != null &&
-              widget.postData['content'].toString().isNotEmpty) ...[
-            const SizedBox(height: Spacing.md),
-            Text(
-              widget.postData['content'],
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 15,
-                height: 1.5,
-              ),
-            ),
-          ],
+          const SizedBox(height: Spacing.sm),
 
-          // ─── MEDIA ─────────────────────────────────────
-          if (mediaUrl != null) ...[
-            const SizedBox(height: Spacing.md),
-            _buildMedia(colors, mediaType, mediaUrl),
-          ],
+          // ─── SPECIFIC CONTENT UI ───────────────────────
+          if (isText)
+            _buildTextPost(colors),
+          if (isPhoto)
+            _buildPhotoPost(colors, mediaUrl),
+          if (isVideo)
+            _buildVideoPost(colors, mediaUrl),
+          if (isAudio)
+            _buildAudioPost(colors),
 
           // ─── ACTION BAR ────────────────────────────────
-          const SizedBox(height: Spacing.md),
+          const SizedBox(height: Spacing.sm),
           _buildActionBar(colors),
 
           // ─── COMMENTS ──────────────────────────────────
@@ -216,12 +224,32 @@ class _PostCardState extends State<PostCard>
     );
   }
 
+  Widget _buildBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   Widget _buildUserRow(
     AppColorsExtension colors,
     String name,
     String? avatar,
     String? frameUrl,
     String timeStr,
+    Widget badge,
   ) {
     return Row(
       children: [
@@ -261,6 +289,8 @@ class _PostCardState extends State<PostCard>
             ],
           ),
         ),
+        badge,
+        const SizedBox(width: 8),
         _buildMoreMenu(colors),
       ],
     );
@@ -374,124 +404,203 @@ class _PostCardState extends State<PostCard>
     );
   }
 
-  Widget _buildMedia(
-      AppColorsExtension colors, String? mediaType, String mediaUrl) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(Radii.lg),
-      child: mediaType == 'video' && _videoController != null
-          ? _videoController!.value.isInitialized
-              ? AspectRatio(
-                  aspectRatio: _videoController!.value.aspectRatio,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      VideoPlayer(_videoController!),
-                      // Gradient scrim
-                      Positioned.fill(
-                        child: AnimatedOpacity(
-                          opacity:
-                              _videoController!.value.isPlaying ? 0.0 : 1.0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withOpacity(0.3),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _videoController!.value.isPlaying
-                                ? _videoController!.pause()
-                                : _videoController!.play();
-                          });
-                        },
-                        child: AnimatedOpacity(
-                          opacity:
-                              _videoController!.value.isPlaying ? 0.0 : 1.0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.white,
-                              size: 32,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: colors.surfaceAlt,
-                    borderRadius: BorderRadius.circular(Radii.lg),
-                  ),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: colors.primary,
-                    ),
-                  ),
-                )
-          : Image.network(
+  Widget _buildTextPost(AppColorsExtension colors) {
+    final content = widget.postData['content']?.toString() ?? '';
+    if (content.isEmpty) return const SizedBox();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+      child: Text(
+        content,
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontSize: 15,
+          height: 1.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoPost(AppColorsExtension colors, String? mediaUrl) {
+    final content = widget.postData['content']?.toString() ?? '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (content.isNotEmpty) ...[
+          Text(
+            content,
+            style: TextStyle(color: colors.textPrimary, fontSize: 15, height: 1.5),
+          ),
+          const SizedBox(height: Spacing.md),
+        ],
+        if (mediaUrl != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.network(
               mediaUrl,
               width: double.infinity,
               fit: BoxFit.cover,
-              loadingBuilder: (_, child, progress) {
-                if (progress == null) return child;
-                return Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: colors.surfaceAlt,
-                    borderRadius: BorderRadius.circular(Radii.lg),
-                  ),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: colors.primary,
-                      value: progress.expectedTotalBytes != null
-                          ? progress.cumulativeBytesLoaded /
-                              progress.expectedTotalBytes!
-                          : null,
-                    ),
-                  ),
-                );
-              },
               errorBuilder: (_, __, ___) => Container(
                 height: 200,
-                decoration: BoxDecoration(
-                  color: colors.surfaceAlt,
-                  borderRadius: BorderRadius.circular(Radii.lg),
+                color: colors.surfaceAlt,
+                child: Center(child: Icon(Icons.broken_image_rounded, color: colors.textMuted)),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildVideoPost(AppColorsExtension colors, String? mediaUrl) {
+    final content = widget.postData['content']?.toString() ?? '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (content.isNotEmpty) ...[
+          Text(
+            content,
+            style: TextStyle(color: colors.textPrimary, fontSize: 15, height: 1.5),
+          ),
+          const SizedBox(height: Spacing.md),
+        ],
+        if (mediaUrl != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                _videoController != null && _videoController!.value.isInitialized
+                    ? AspectRatio(
+                        aspectRatio: _videoController!.value.aspectRatio,
+                        child: VideoPlayer(_videoController!),
+                      )
+                    : Container(
+                        height: 200,
+                        color: colors.surfaceAlt,
+                        child: Center(child: CircularProgressIndicator(color: colors.primary)),
+                      ),
+                // Play Icon Overlay
+                GestureDetector(
+                  onTap: () {
+                    if (_videoController == null) return;
+                    setState(() {
+                      _videoController!.value.isPlaying ? _videoController!.pause() : _videoController!.play();
+                    });
+                  },
+                  child: AnimatedOpacity(
+                    opacity: _videoController?.value.isPlaying == true ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                      ),
+                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
+                    ),
+                  ),
                 ),
-                child: Center(
+                // Duration text bottom-right
+                if (_videoController != null && _videoController!.value.isInitialized)
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _formatDuration(_videoController!.value.duration),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return "${duration.inHours > 0 ? '${duration.inHours}:' : ''}$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  Widget _buildAudioPost(AppColorsExtension colors) {
+    final content = widget.postData['content']?.toString() ?? '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (content.isNotEmpty) ...[
+          Text(
+            content,
+            style: TextStyle(color: colors.textPrimary, fontSize: 15, height: 1.5),
+          ),
+          const SizedBox(height: Spacing.md),
+        ],
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF6C63FF).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  setState(() => _isPlayingAudio = !_isPlayingAudio);
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF6C63FF),
+                    shape: BoxShape.circle,
+                  ),
                   child: Icon(
-                    Icons.broken_image_rounded,
-                    color: colors.textMuted,
-                    size: 40,
+                    _isPlayingAudio ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    color: Colors.white,
                   ),
                 ),
               ),
-            ),
+              const SizedBox(width: 12),
+              // Custom waveform
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(20, (index) {
+                    final heights = [10.0, 15.0, 25.0, 12.0, 30.0, 18.0, 22.0, 14.0, 28.0, 16.0, 20.0, 26.0, 12.0, 24.0, 18.0, 22.0, 14.0, 28.0, 15.0, 10.0];
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: 4,
+                      height: _isPlayingAudio ? heights[index] : 4.0,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6C63FF).withOpacity(_isPlayingAudio ? 1.0 : 0.4),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                "1:24", // mock duration
+                style: TextStyle(
+                  color: Color(0xFF6C63FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

@@ -38,6 +38,20 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<Map<String, dynamic>> posts = [];
   Map<String, dynamic>? currentUserData;
+  String _activeFilter = 'All';
+  final List<String> _filters = ['All', 'Text', 'Photos', 'Videos', 'Audio'];
+
+  List<Map<String, dynamic>> get _filteredPosts {
+    if (_activeFilter == 'All') return posts;
+    return posts.where((p) {
+      final type = p['media_type'];
+      if (_activeFilter == 'Text') return type == null || type == '';
+      if (_activeFilter == 'Photos') return type == 'image';
+      if (_activeFilter == 'Videos') return type == 'video';
+      if (_activeFilter == 'Audio') return type == 'audio';
+      return true;
+    }).toList();
+  }
   LevelInfo? _levelInfo;
   bool loading = true;
   int _currentIndex = 0;
@@ -228,11 +242,56 @@ class _HomeScreenState extends State<HomeScreen>
 
         SizedBox(height: 4),
 
+        // Feed Filter Tabs
+        Container(
+          height: 40,
+          margin: EdgeInsets.only(bottom: 8),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _filters.length,
+            itemBuilder: (context, index) {
+              final filter = _filters[index];
+              final isSelected = _activeFilter == filter;
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _activeFilter = filter);
+                },
+                child: Container(
+                  margin: EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isSelected ? context.colors.primary : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        filter,
+                        style: TextStyle(
+                          color: isSelected ? context.colors.primary : context.colors.textSecondary,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
         // Posts
         Expanded(
           child: loading
               ? const ShimmerFeedLoading(count: 4)
-              : posts.isEmpty
+              : _filteredPosts.isEmpty
               ? _EmptyFeed()
               : RefreshIndicator(
             color: context.colors.primary,
@@ -240,10 +299,10 @@ class _HomeScreenState extends State<HomeScreen>
             onRefresh: fetchPosts,
             child: ListView.builder(
               padding: EdgeInsets.only(bottom: 100),
-              itemCount: posts.length,
+              itemCount: _filteredPosts.length,
               itemBuilder: (context, index) => _AnimatedPostCard(
                 index: index,
-                postData: posts[index],
+                postData: _filteredPosts[index],
               ),
             ),
           ),
@@ -459,7 +518,7 @@ class _FeedHeader extends StatelessWidget {
 }
 
 // ─── Compose Bar ──────────────────────────────────────────────────────────────
-class _ComposeBar extends StatelessWidget {
+class _ComposeBar extends StatefulWidget {
   final Map<String, dynamic>? userData;
   final TextEditingController controller;
   final VoidCallback onPost;
@@ -473,10 +532,17 @@ class _ComposeBar extends StatelessWidget {
   });
 
   @override
+  State<_ComposeBar> createState() => _ComposeBarState();
+}
+
+class _ComposeBarState extends State<_ComposeBar> {
+  String _selectedType = 'Text';
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       margin: EdgeInsets.all(16),
-      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: context.colors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -489,86 +555,127 @@ class _ComposeBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          // Avatar placeholder
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: context.colors.surfaceAlt,
-              image: userData != null && userData!['avatar_url'] != null
-                  ? DecorationImage(
-                      image: NetworkImage(userData!['avatar_url']),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-              gradient: userData == null || userData!['avatar_url'] == null 
-                  ? LinearGradient(
-                      colors: [context.colors.primary, context.colors.accent],
-                    )
-                  : null,
-            ),
-            child: userData == null || userData!['avatar_url'] == null 
-                ? Icon(Icons.person, color: Colors.white, size: 18)
-                : null,
-          ),
-          SizedBox(width: 10),
-
-          Expanded(
-            child: TextField(
-              controller: controller,
-              style: TextStyle(
-                color: context.colors.textPrimary,
-                fontSize: 14,
-              ),
-              decoration: InputDecoration(
-                hintText: "What's your move today?",
-                hintStyle: TextStyle(
-                  color: context.colors.textMuted,
-                  fontSize: 14,
+          Row(
+            children: [
+              // Avatar placeholder
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: context.colors.surfaceAlt,
+                  image: widget.userData != null && widget.userData!['avatar_url'] != null
+                      ? DecorationImage(
+                          image: NetworkImage(widget.userData!['avatar_url']),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                  gradient: widget.userData == null || widget.userData!['avatar_url'] == null 
+                      ? LinearGradient(
+                          colors: [context.colors.primary, context.colors.accent],
+                        )
+                      : null,
                 ),
-                border: InputBorder.none,
-                isDense: true,
+                child: widget.userData == null || widget.userData!['avatar_url'] == null 
+                    ? Icon(Icons.person, color: Colors.white, size: 18)
+                    : null,
               ),
-            ),
-          ),
+              SizedBox(width: 10),
 
-          // Media button
-          GestureDetector(
-            onTap: onMedia,
-            child: Container(
-              padding: EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: context.colors.surfaceAlt,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.image_outlined,
-                  color: context.colors.textSecondary, size: 18),
-            ),
-          ),
-          SizedBox(width: 6),
-
-          // Send button
-          GestureDetector(
-            onTap: onPost,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [context.colors.primary, Color(0xFF9B7CFF)],
-                ),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: context.colors.primaryGlow,
-                    blurRadius: 8,
+              Expanded(
+                child: TextField(
+                  controller: widget.controller,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 14,
                   ),
-                ],
+                  decoration: InputDecoration(
+                    hintText: "What's your move?",
+                    hintStyle: TextStyle(
+                      color: context.colors.textMuted,
+                      fontSize: 14,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                  ),
+                ),
               ),
-              child: Icon(Icons.send_rounded,
-                  color: Colors.white, size: 16),
+
+              // Media button
+              GestureDetector(
+                onTap: widget.onMedia,
+                child: Container(
+                  padding: EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: context.colors.surfaceAlt,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.image_outlined,
+                      color: context.colors.textSecondary, size: 18),
+                ),
+              ),
+              SizedBox(width: 6),
+
+              // Send button
+              GestureDetector(
+                onTap: widget.onPost,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [context.colors.primary, Color(0xFF9B7CFF)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: context.colors.primaryGlow,
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: Icon(Icons.send_rounded,
+                      color: Colors.white, size: 16),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: ['Text', 'Photo', 'Video', 'Audio'].map((type) {
+                final isSelected = _selectedType == type;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ChoiceChip(
+                    label: Text(type),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _selectedType = type);
+                        if (type == 'Photo' || type == 'Video' || type == 'Audio') {
+                          widget.onMedia();
+                        }
+                      }
+                    },
+                    selectedColor: context.colors.primary.withOpacity(0.1),
+                    backgroundColor: context.colors.surfaceAlt,
+                    labelStyle: TextStyle(
+                      color: isSelected ? context.colors.primary : context.colors.textSecondary,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      fontSize: 12,
+                    ),
+                    side: BorderSide(
+                      color: isSelected ? context.colors.primary : Colors.transparent,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
