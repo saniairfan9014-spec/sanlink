@@ -18,6 +18,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sanlink/features/home/notifications_screen.dart';
 import 'package:sanlink/features/games/services/game_service.dart';
 import 'package:sanlink/features/chat/services/chat_service.dart';
+import '../voice_rooms/screens/voice_rooms_screen.dart';
 
 
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
@@ -222,12 +223,23 @@ class _HomeScreenState extends State<HomeScreen>
       children: [
         // Header
         _FeedHeader(
-          xpText: _levelInfo != null ? '${_levelInfo!.currentXp} XP' : '...',
+          userData: currentUserData,
           onNotification: () {
             HapticFeedback.lightImpact();
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => NotificationsScreen()),
+            );
+          },
+          onProfile: () {
+            HapticFeedback.lightImpact();
+            final fallbackUser = {
+              'id': supabase.auth.currentUser?.id ?? '',
+              'name': supabase.auth.currentUser?.email ?? 'Unknown',
+            };
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ProfileScreen(userData: currentUserData ?? fallbackUser)),
             );
           },
         ),
@@ -318,15 +330,9 @@ class _HomeScreenState extends State<HomeScreen>
       case 1:
         return ChatListScreen();
       case 2:
-        return GamesScreen();
-
+        return const VoiceRoomsScreen();
       case 3:
-      // Pass current user data to ProfileScreen
-        final fallbackUser = {
-          'id': supabase.auth.currentUser?.id ?? '',
-          'name': supabase.auth.currentUser?.email ?? 'Unknown',
-        };
-        return ProfileScreen(userData: currentUserData ?? fallbackUser);
+        return GamesScreen();
       default:
         return SizedBox();
     }
@@ -409,12 +415,14 @@ class _HomeScreenState extends State<HomeScreen>
 
 // ─── Feed Header ──────────────────────────────────────────────────────────────
 class _FeedHeader extends StatelessWidget {
-  final String xpText;
+  final Map<String, dynamic>? userData;
   final VoidCallback onNotification;
+  final VoidCallback onProfile;
 
   const _FeedHeader({
-    required this.xpText,
+    this.userData,
     required this.onNotification,
+    required this.onProfile,
   });
 
   @override
@@ -452,28 +460,26 @@ class _FeedHeader extends StatelessWidget {
 
           Spacer(),
 
-          // XP Badge
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: context.colors.surfaceAlt,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: context.colors.gold.withOpacity(0.4)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.bolt, color: context.colors.gold, size: 14),
-                SizedBox(width: 4),
-                Text(
-                  xpText,
-                  style: TextStyle(
-                    color: context.colors.gold,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+          // Profile Avatar (Replacing XP Badge)
+          GestureDetector(
+            onTap: onProfile,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: context.colors.surfaceAlt,
+                border: Border.all(color: context.colors.border),
+                image: userData != null && userData!['avatar_url'] != null
+                    ? DecorationImage(
+                        image: NetworkImage(userData!['avatar_url']),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: userData == null || userData!['avatar_url'] == null
+                  ? Icon(Icons.person, color: context.colors.textMuted, size: 20)
+                  : null,
             ),
           ),
 
@@ -815,34 +821,47 @@ class _GamifiedBottomNav extends StatelessWidget {
         ),
         height: 60,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _NavItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                index: 0,
-                currentIndex: currentIndex,
-                onTap: onTap),
-            _NavItem(
-                icon: Icons.chat_bubble_rounded,
-                label: 'Chat',
-                index: 1,
-                currentIndex: currentIndex,
-                badgeCount: chatUnreadCount,
-                onTap: onTap),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _NavItem(
+                      icon: Icons.home_rounded,
+                      label: 'Home',
+                      index: 0,
+                      currentIndex: currentIndex,
+                      onTap: onTap),
+                  _NavItem(
+                      icon: Icons.chat_bubble_rounded,
+                      label: 'Chat',
+                      index: 1,
+                      currentIndex: currentIndex,
+                      badgeCount: chatUnreadCount,
+                      onTap: onTap),
+                ],
+              ),
+            ),
             SizedBox(width: 48), // FAB gap
-            _NavItem(
-                icon: Icons.sports_esports_rounded,
-                label: 'Games',
-                index: 2,
-                currentIndex: currentIndex,
-                onTap: onTap),
-            _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
-                index: 3,
-                currentIndex: currentIndex,
-                onTap: onTap),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _NavItem(
+                      icon: Icons.mic_rounded,
+                      label: 'Rooms',
+                      index: 2,
+                      currentIndex: currentIndex,
+                      onTap: onTap),
+                  _NavItem(
+                      icon: Icons.sports_esports_rounded,
+                      label: 'Games',
+                      index: 3,
+                      currentIndex: currentIndex,
+                      onTap: onTap),
+                ],
+              ),
+            ),
           ],
         ),
       ),

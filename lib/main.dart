@@ -5,13 +5,17 @@ import 'features/home/home_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'core/theme/app_theme.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseService().init();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AppThemeProvider(),
-      child: const MyApp(),
+    ProviderScope(
+      child: ChangeNotifierProvider(
+        create: (_) => AppThemeProvider(),
+        child: const MyApp(),
+      ),
     ),
   );
 }
