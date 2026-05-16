@@ -374,11 +374,14 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
                                   blurRadius: 6,
                                 ),
                               ],
+
                             ),
                           ),
                           const SizedBox(width: 8),
                           Text('Your Room is Live',
+
                               style: TextStyle(
+
                                   color: Colors.greenAccent,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700)),
