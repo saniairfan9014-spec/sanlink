@@ -18,6 +18,7 @@ class VoiceRoomState {
   final String? claimError;
   final Map<String, Map<String, dynamic>> userProfiles;
   final Set<String> activePresenceUserIds;
+  final bool isKicked;
 
   const VoiceRoomState({
     this.isLoading = false,
@@ -30,6 +31,7 @@ class VoiceRoomState {
     this.claimError,
     this.userProfiles = const {},
     this.activePresenceUserIds = const {},
+    this.isKicked = false,
   });
 
   VoiceRoomState copyWith({
@@ -43,6 +45,7 @@ class VoiceRoomState {
     String? Function()? claimError,
     Map<String, Map<String, dynamic>>? userProfiles,
     Set<String>? activePresenceUserIds,
+    bool? isKicked,
   }) {
     return VoiceRoomState(
       isLoading: isLoading ?? this.isLoading,
@@ -55,6 +58,7 @@ class VoiceRoomState {
       claimError: claimError != null ? claimError() : this.claimError,
       userProfiles: userProfiles ?? this.userProfiles,
       activePresenceUserIds: activePresenceUserIds ?? this.activePresenceUserIds,
+      isKicked: isKicked ?? this.isKicked,
     );
   }
 }
@@ -148,7 +152,10 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
     try {
       // Setup listeners
       _roomSub = _repository.watchRoom(roomId).listen((room) {
-        state = state.copyWith(room: room);
+        state = state.copyWith(
+          room: room,
+          isKicked: room.kickedUserIds.contains(currentUserId),
+        );
       });
       
       _membersSub = _repository.watchMembers(roomId).listen((members) {
@@ -353,6 +360,68 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
         description: description,
         category: category,
       );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<void> banChatUser(String roomId, String userId) async {
+    final room = state.room;
+    if (room == null) return;
+
+    final List<String> currentBans = List<String>.from(room.bannedChatUserIds);
+    if (currentBans.contains(userId)) {
+      currentBans.remove(userId);
+    } else {
+      currentBans.add(userId);
+    }
+
+    final newDescription = RoomModel.formatDescription(
+      cleanDescription: room.cleanDescription ?? '',
+      coverImageUrl: room.coverImageUrl,
+      bannedChatUserIds: currentBans,
+      kickedUserIds: room.kickedUserIds,
+    );
+
+    try {
+      await _repository.updateRoom(
+        roomId: roomId,
+        title: room.title,
+        description: newDescription,
+        category: room.category,
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<void> kickUser(String roomId, String userId) async {
+    final room = state.room;
+    if (room == null) return;
+
+    final List<String> currentKicks = List<String>.from(room.kickedUserIds);
+    if (!currentKicks.contains(userId)) {
+      currentKicks.add(userId);
+    }
+
+    final newDescription = RoomModel.formatDescription(
+      cleanDescription: room.cleanDescription ?? '',
+      coverImageUrl: room.coverImageUrl,
+      bannedChatUserIds: room.bannedChatUserIds,
+      kickedUserIds: currentKicks,
+    );
+
+    try {
+      // 1. Persist the kick list in room description
+      await _repository.updateRoom(
+        roomId: roomId,
+        title: room.title,
+        description: newDescription,
+        category: room.category,
+      );
+      
+      // 2. Completely remove their member record from the room members table
+      await _repository.leaveRoom(roomId, userId);
     } catch (e) {
       state = state.copyWith(error: e.toString());
     }

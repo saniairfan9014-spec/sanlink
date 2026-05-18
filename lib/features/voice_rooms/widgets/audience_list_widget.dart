@@ -6,12 +6,14 @@ class AudienceListWidget extends StatelessWidget {
   final List<Map<String, dynamic>> users;
   final bool isGridMode;
   final ScrollPhysics? physics;
+  final ValueChanged<Map<String, dynamic>>? onUserTap;
 
   const AudienceListWidget({
     super.key,
     required this.users,
     this.isGridMode = false,
     this.physics = const BouncingScrollPhysics(),
+    this.onUserTap,
   });
 
   @override
@@ -49,7 +51,9 @@ class AudienceListWidget extends StatelessWidget {
             imageUrl: user['image'],
             isOnline: user['isOnline'] ?? true,
             isGridMode: true,
-            onTap: () {},
+            onTap: () {
+              if (onUserTap != null) onUserTap!(user);
+            },
           );
         },
       );
@@ -68,7 +72,9 @@ class AudienceListWidget extends StatelessWidget {
           subtitle: user['role'] ?? 'Listener',
           isOnline: user['isOnline'] ?? true,
           isGridMode: false,
-          onTap: () {},
+          onTap: () {
+            if (onUserTap != null) onUserTap!(user);
+          },
         );
       },
     );

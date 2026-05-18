@@ -16,8 +16,9 @@ class RoomModel {
     if (description == null) return null;
     if (description!.contains('||cover_url||')) {
       final parts = description!.split('||cover_url||');
-      if (parts.length > 1 && parts[1].trim().isNotEmpty) {
-        return parts[1].trim();
+      if (parts.length > 1) {
+        final content = parts[1].split('||').first.trim();
+        if (content.isNotEmpty) return content;
       }
     }
     return null;
@@ -25,13 +26,54 @@ class RoomModel {
 
   String? get cleanDescription {
     if (description == null) return null;
-    if (description!.contains('||cover_url||')) {
-      final parts = description!.split('||cover_url||');
-      if (parts.isNotEmpty) {
-        return parts[0].trim();
+    return description!.split('||').first.trim();
+  }
+
+  List<String> get bannedChatUserIds {
+    if (description == null) return [];
+    if (description!.contains('||chat_banned||')) {
+      final parts = description!.split('||chat_banned||');
+      if (parts.length > 1) {
+        final content = parts[1].split('||').first.trim();
+        if (content.isNotEmpty) {
+          return content.split(',').map((id) => id.trim()).where((id) => id.isNotEmpty).toList();
+        }
       }
     }
-    return description;
+    return [];
+  }
+
+  List<String> get kickedUserIds {
+    if (description == null) return [];
+    if (description!.contains('||kicked||')) {
+      final parts = description!.split('||kicked||');
+      if (parts.length > 1) {
+        final content = parts[1].split('||').first.trim();
+        if (content.isNotEmpty) {
+          return content.split(',').map((id) => id.trim()).where((id) => id.isNotEmpty).toList();
+        }
+      }
+    }
+    return [];
+  }
+
+  static String formatDescription({
+    required String cleanDescription,
+    String? coverImageUrl,
+    List<String> bannedChatUserIds = const [],
+    List<String> kickedUserIds = const [],
+  }) {
+    final buffer = StringBuffer(cleanDescription);
+    if (coverImageUrl != null && coverImageUrl.isNotEmpty) {
+      buffer.write('||cover_url||$coverImageUrl');
+    }
+    if (bannedChatUserIds.isNotEmpty) {
+      buffer.write('||chat_banned||${bannedChatUserIds.join(',')}');
+    }
+    if (kickedUserIds.isNotEmpty) {
+      buffer.write('||kicked||${kickedUserIds.join(',')}');
+    }
+    return buffer.toString();
   }
 
   const RoomModel({

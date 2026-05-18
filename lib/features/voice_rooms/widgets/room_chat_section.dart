@@ -10,6 +10,8 @@ class RoomChatSection extends StatefulWidget {
   final ValueChanged<String> onSendMessage;
   final Map<String, Map<String, dynamic>> userProfiles;
   
+  final bool isChatBanned;
+  
   const RoomChatSection({
     super.key,
     this.height = 300,
@@ -17,6 +19,7 @@ class RoomChatSection extends StatefulWidget {
     required this.currentUserId,
     required this.onSendMessage,
     this.userProfiles = const {},
+    this.isChatBanned = false,
   });
 
   @override
@@ -56,6 +59,7 @@ class _RoomChatSectionState extends State<RoomChatSection> {
   }
 
   void _handleSend() {
+    if (widget.isChatBanned) return;
     final text = _controller.text.trim();
     if (text.isNotEmpty) {
       widget.onSendMessage(text);
@@ -197,15 +201,21 @@ class _RoomChatSectionState extends State<RoomChatSection> {
                 Expanded(
                   child: ThemedTextField(
                     controller: _controller,
-                    hintText: 'Type a message...',
+                    hintText: widget.isChatBanned
+                        ? 'Banned from chatting by host'
+                        : 'Type a message...',
                     maxLines: 1,
                     onSubmitted: (_) => _handleSend(),
+                    enabled: !widget.isChatBanned,
                   ),
                 ),
                 const SizedBox(width: Spacing.xs),
                 IconButton(
-                  onPressed: _handleSend,
-                  icon: Icon(Icons.send_rounded, color: colors.primary),
+                  onPressed: widget.isChatBanned ? null : _handleSend,
+                  icon: Icon(
+                    Icons.send_rounded,
+                    color: widget.isChatBanned ? colors.textMuted : colors.primary,
+                  ),
                 ),
               ],
             ),

@@ -18,6 +18,7 @@ class ThemedTextField extends StatelessWidget {
   final bool autofocus;
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onSubmitted;
+  final bool enabled;
 
   const ThemedTextField({
     super.key,
@@ -36,6 +37,7 @@ class ThemedTextField extends StatelessWidget {
     this.autofocus = false,
     this.textInputAction,
     this.onSubmitted,
+    this.enabled = true,
   });
 
   @override
@@ -54,6 +56,7 @@ class ThemedTextField extends StatelessWidget {
       autofocus: autofocus,
       textInputAction: textInputAction,
       onFieldSubmitted: onSubmitted,
+      enabled: enabled,
       style: TextStyle(
         color: colors.textPrimary,
         fontSize: 15,

@@ -7,6 +7,7 @@ import '../widgets/audience_list_widget.dart';
 import '../widgets/room_chat_section.dart';
 import '../controllers/voice_room_controller.dart';
 import '../data/models/room_member_model.dart';
+import '../data/models/room_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'room_info_screen.dart';
 
@@ -192,33 +193,111 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
         );
       } else {
         // Tapped someone else's seat
-        if (isHost) {
-          // Host controls for occupied seat
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: colors.surface,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            builder: (_) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: Icon(Icons.exit_to_app, color: colors.red),
-                    title: Text('Remove ${seatUser.userName ?? 'Speaker'} from Seat', style: TextStyle(color: colors.red)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      ref.read(voiceRoomControllerProvider.notifier).leaveSeat(_roomId, seatUser.userId);
-                    },
-                  ),
-                ],
-              ),
-            ),
+        if (isHost && state.room != null) {
+          _showModerationSheet(
+            targetUserId: seatUser.userId,
+            targetUserName: seatUser.userName ?? 'Speaker',
+            seatUser: seatUser,
+            colors: colors,
+            room: state.room!,
           );
         }
       }
     }
+  }
+
+  void _showModerationSheet({
+    required String targetUserId,
+    required String targetUserName,
+    required RoomMemberModel? seatUser,
+    required AppColorsExtension colors,
+    required RoomModel room,
+  }) {
+    final isBannedFromChat = room.bannedChatUserIds.contains(targetUserId);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Spacing.md, horizontal: Spacing.base),
+              child: Text(
+                'Moderate $targetUserName',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            Divider(color: colors.border),
+            if (seatUser != null)
+              ListTile(
+                leading: Icon(Icons.mic_off, color: colors.red),
+                title: Text('Remove from Mic Seat', style: TextStyle(color: colors.red)),
+                subtitle: Text('Return speaker back to audience', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(voiceRoomControllerProvider.notifier).leaveSeat(_roomId, targetUserId);
+                },
+              ),
+            ListTile(
+              leading: Icon(
+                isBannedFromChat ? Icons.chat_bubble : Icons.chat_bubble_outline,
+                color: colors.primary,
+              ),
+              title: Text(
+                isBannedFromChat ? 'Unban from Chatting' : 'Ban from Chatting',
+                style: TextStyle(color: colors.textPrimary),
+              ),
+              subtitle: Text(
+                isBannedFromChat ? 'Allow user to send messages' : 'Mute user from sending messages',
+                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                ref.read(voiceRoomControllerProvider.notifier).banChatUser(_roomId, targetUserId);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isBannedFromChat
+                          ? '$targetUserName has been unbanned from chatting.'
+                          : '$targetUserName has been banned from chatting.',
+                      style: TextStyle(color: colors.textPrimary),
+                    ),
+                    backgroundColor: colors.surface,
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.gavel, color: colors.red),
+              title: Text('Kick from Room', style: TextStyle(color: colors.red)),
+              subtitle: Text('Completely remove and ban user from this room', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context);
+                ref.read(voiceRoomControllerProvider.notifier).kickUser(_roomId, targetUserId);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('$targetUserName has been kicked from the room.', style: TextStyle(color: colors.textPrimary)),
+                    backgroundColor: colors.surface,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: Spacing.sm),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -228,6 +307,17 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
     final state = ref.watch(voiceRoomControllerProvider);
 
     ref.listen<VoiceRoomState>(voiceRoomControllerProvider, (previous, next) {
+      if (next.isKicked) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('You have been kicked from the room by the host.', style: TextStyle(color: colors.textPrimary)),
+            backgroundColor: colors.red,
+          ),
+        );
+        return;
+      }
+
       if (next.claimError != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -265,6 +355,7 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
     
     // Map audience to the format expected by AudienceListWidget
     final audienceMaps = audience.map((m) => {
+      'id': m.userId,
       'name': m.userName ?? m.userId,
       'image': m.avatarUrl,
       'role': 'Listener',
@@ -566,6 +657,19 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
                   users: audienceMaps,
                   isGridMode: false,
                   physics: const NeverScrollableScrollPhysics(),
+                  onUserTap: (userMap) {
+                    if (isHost && state.room != null) {
+                      final targetId = userMap['id'] as String;
+                      final targetName = userMap['name'] as String;
+                      _showModerationSheet(
+                        targetUserId: targetId,
+                        targetUserName: targetName,
+                        seatUser: null,
+                        colors: colors,
+                        room: state.room!,
+                      );
+                    }
+                  },
                 ),
               ),
 
@@ -588,6 +692,7 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
                   messages: state.messages,
                   currentUserId: _currentUserId,
                   userProfiles: state.userProfiles,
+                  isChatBanned: room?.bannedChatUserIds.contains(_currentUserId) ?? false,
                   onSendMessage: (text) {
                     ref.read(voiceRoomControllerProvider.notifier).sendMessage(_roomId, _currentUserId, text);
                   },
