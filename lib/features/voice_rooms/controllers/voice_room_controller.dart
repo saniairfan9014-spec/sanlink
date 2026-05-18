@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:collection/collection.dart';
 import '../data/repositories/voice_room_repository.dart';
 import '../data/models/room_model.dart';
 import '../data/models/room_member_model.dart';
@@ -158,6 +159,15 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
             avatarUrl: profile?['profile_pic'] ?? profile?['avatar_url'] ?? m.avatarUrl,
           );
         }).toList();
+        
+        // Sync Agora state with the local user's role and mute status dynamically
+        final currentMember = initialMembers.firstWhereOrNull((m) => m.userId == currentUserId);
+        if (currentMember != null) {
+          _repository.changeRole(currentMember.role);
+          _repository.muteMic(currentMember.isMuted);
+          state = state.copyWith(isMuted: currentMember.isMuted);
+        }
+
         state = state.copyWith(members: initialMembers);
         _fetchProfilesForMembers(members);
       });
@@ -171,8 +181,13 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
         _fetchProfilesForMessages(sessionMessages);
       });
       
-      _speakingSub = _repository.watchSpeakingStatus().listen((isSpeaking) {
-        // Here we would map the speaking status to the current user in members list
+      _speakingSub = _repository.watchSpeakingStatus().listen((speakingUids) {
+        final updatedMembers = state.members.map((m) {
+          final int agoraUid = m.userId.hashCode.abs() & 0x7FFFFFFF;
+          final bool isSpeaking = speakingUids.contains(agoraUid);
+          return m.copyWith(isSpeaking: isSpeaking);
+        }).toList();
+        state = state.copyWith(members: updatedMembers);
       });
 
       // Realtime subscription for user profile updates
@@ -240,13 +255,22 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
         }
       });
 
+      // Determine starting role: Host if creator, listener otherwise
+      final roomData = await Supabase.instance.client
+          .from('rooms')
+          .select('host_id')
+          .eq('id', roomId)
+          .maybeSingle();
+      final isHost = roomData != null && roomData['host_id'] == currentUserId;
+      final initialRole = isHost ? RoomRole.host : RoomRole.listener;
+
       // Join logic
       await _repository.joinRoom(
         roomId: roomId,
         userId: currentUserId,
         token: token,
         channelName: channelName,
-        role: RoomRole.listener,
+        role: initialRole,
       );
 
       state = state.copyWith(isLoading: false);
@@ -276,7 +300,9 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
     state = state.copyWith(isClaimingSeat: true, claimError: () => null);
     try {
       final success = await _repository.claimSeat(roomId, userId, userName, avatarUrl, seatIndex);
-      if (!success) {
+      if (success) {
+        await _repository.changeRole(RoomRole.speaker);
+      } else {
         state = state.copyWith(claimError: () => 'Seat is already taken or locked!');
       }
     } catch (e) {
@@ -289,6 +315,7 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
   Future<void> leaveSeat(String roomId, String userId) async {
     try {
       await _repository.leaveSeat(roomId, userId);
+      await _repository.changeRole(RoomRole.listener);
     } catch (e) {
       state = state.copyWith(error: e.toString());
     }

@@ -325,29 +325,42 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
           if (rooms.isEmpty)
             _buildEmptyState(colors, textTheme)
           else
-            ...rooms.map((room) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: VoiceRoomCard(
-                    title: room.title,
-                    hostName: room.hostId,
-                    hostImage:
-                        'https://i.pravatar.cc/150?u=${room.hostId}',
-                    roomImage: room.coverImageUrl,
-                    listenerCount: room.listenersCount,
-                    speakerCount: 1,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => VoiceRoomScreen(
-                            roomId: room.id,
-                            channelName: room.channelName,
-                          ),
+            ...rooms.map((room) {
+              final hostProfileAsync = ref.watch(roomHostProfileProvider(room.hostId));
+              final hostName = hostProfileAsync.when(
+                data: (profile) => profile?['name'] as String? ?? 'Host',
+                loading: () => 'Loading...',
+                error: (_, __) => 'Host',
+              );
+              final hostImage = hostProfileAsync.when(
+                data: (profile) => (profile?['profile_pic'] ?? profile?['avatar_url']) as String? ?? 'https://i.pravatar.cc/150?u=${room.hostId}',
+                loading: () => 'https://i.pravatar.cc/150?u=${room.hostId}',
+                error: (_, __) => 'https://i.pravatar.cc/150?u=${room.hostId}',
+              );
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: VoiceRoomCard(
+                  title: room.title,
+                  hostName: hostName,
+                  hostImage: hostImage,
+                  roomImage: room.coverImageUrl,
+                  listenerCount: room.listenersCount,
+                  speakerCount: 1,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => VoiceRoomScreen(
+                          roomId: room.id,
+                          channelName: room.channelName,
                         ),
-                      );
-                    },
-                  ),
-                )),
+                      ),
+                    );
+                  },
+                ),
+              );
+            }),
         ],
       ),
     );

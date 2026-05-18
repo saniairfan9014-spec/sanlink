@@ -34,7 +34,7 @@ class VoiceRoomRepository {
   Stream<RoomModel> watchRoom(String roomId) => _realtimeService.subscribeToRoom(roomId);
   Stream<List<RoomMemberModel>> watchMembers(String roomId) => _realtimeService.subscribeToMembers(roomId);
   Stream<List<RoomMessageModel>> watchMessages(String roomId) => _realtimeService.subscribeToMessages(roomId);
-  Stream<bool> watchSpeakingStatus() => _agoraService.onSpeakingStatusChanged;
+  Stream<Set<int>> watchSpeakingStatus() => _agoraService.onSpeakingStatusChanged;
 
   // Actions
   Future<RoomModel> createRoom({
@@ -78,7 +78,7 @@ class VoiceRoomRepository {
       joinedAt: DateTime.now(),
     );
     await _roomService.joinRoom(member);
-    await _agoraService.joinChannel(token, channelName, userId);
+    await _agoraService.joinChannel(token, channelName, userId, role);
   }
 
   Future<void> leaveRoom(String roomId, String userId) async {
@@ -87,6 +87,8 @@ class VoiceRoomRepository {
   }
 
   Future<void> muteMic(bool mute) => _agoraService.muteMic(mute);
+
+  Future<void> changeRole(RoomRole role) => _agoraService.changeRole(role);
 
   Future<void> requestMic(String roomId, String userId) async {
     await _roomService.updateMemberRole(roomId, userId, RoomRole.speaker);

@@ -33,6 +33,8 @@ dependencies:
   # Gamification / interactive UI
   lottie: ^3.3.2     # Lottie animations for rewards / effects
   percent_indicator: ^4.2.5  # Progress bars / circular indicators
+  agora_rtc_engine: ^6.5.4
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:
