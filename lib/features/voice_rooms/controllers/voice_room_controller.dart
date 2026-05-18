@@ -16,6 +16,7 @@ class VoiceRoomState {
   final bool isClaimingSeat;
   final String? claimError;
   final Map<String, Map<String, dynamic>> userProfiles;
+  final Set<String> activePresenceUserIds;
 
   const VoiceRoomState({
     this.isLoading = false,
@@ -27,6 +28,7 @@ class VoiceRoomState {
     this.isClaimingSeat = false,
     this.claimError,
     this.userProfiles = const {},
+    this.activePresenceUserIds = const {},
   });
 
   VoiceRoomState copyWith({
@@ -39,6 +41,7 @@ class VoiceRoomState {
     bool? isClaimingSeat,
     String? Function()? claimError,
     Map<String, Map<String, dynamic>>? userProfiles,
+    Set<String>? activePresenceUserIds,
   }) {
     return VoiceRoomState(
       isLoading: isLoading ?? this.isLoading,
@@ -50,6 +53,7 @@ class VoiceRoomState {
       isClaimingSeat: isClaimingSeat ?? this.isClaimingSeat,
       claimError: claimError != null ? claimError() : this.claimError,
       userProfiles: userProfiles ?? this.userProfiles,
+      activePresenceUserIds: activePresenceUserIds ?? this.activePresenceUserIds,
     );
   }
 }
@@ -68,6 +72,7 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
   StreamSubscription? _messagesSub;
   StreamSubscription? _speakingSub;
   RealtimeChannel? _usersRealtimeSub;
+  RealtimeChannel? _presenceChannel;
   DateTime? _joinTime;
 
   VoiceRoomController({required VoiceRoomRepository repository})
@@ -205,6 +210,36 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
           )
           .subscribe();
 
+      // Presence subscription
+      _presenceChannel = Supabase.instance.client.channel('presence:$roomId');
+      
+      _presenceChannel!.onPresenceSync((payload) {
+        final stateList = _presenceChannel!.presenceState();
+        final Set<String> uniqueUserIds = {};
+        for (final singleState in stateList) {
+          for (final presence in singleState.presences) {
+            final payloadMap = presence.payload;
+            final userId = payloadMap['user_id'] as String?;
+            if (userId != null) {
+              uniqueUserIds.add(userId);
+            }
+          }
+        }
+        state = state.copyWith(activePresenceUserIds: uniqueUserIds);
+      }).subscribe((status, error) async {
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          try {
+            await _presenceChannel!.track({
+              'user_id': currentUserId,
+              'status': 'online',
+              'joined_at': DateTime.now().toIso8601String(),
+            });
+          } catch (e) {
+            print('Error tracking presence: $e');
+          }
+        }
+      });
+
       // Join logic
       await _repository.joinRoom(
         roomId: roomId,
@@ -223,6 +258,12 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
   Future<void> toggleMute() async {
     final newMutedState = !state.isMuted;
     await _repository.muteMic(newMutedState);
+    
+    final room = state.room;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (room != null && user != null) {
+      await _repository.updateMemberMute(room.id, user.id, newMutedState);
+    }
     state = state.copyWith(isMuted: newMutedState);
   }
 
@@ -296,6 +337,18 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
     _messagesSub?.cancel();
     _speakingSub?.cancel();
     _usersRealtimeSub?.unsubscribe();
+    
+    // Clean up presence tracking
+    _presenceChannel?.untrack();
+    if (_presenceChannel != null) {
+      try {
+        Supabase.instance.client.removeChannel(_presenceChannel!);
+      } catch (e) {
+        print('Error removing presence channel: $e');
+      }
+      _presenceChannel = null;
+    }
+    
     _joinTime = null;
     await _repository.leaveRoom(roomId, userId);
     state = const VoiceRoomState(); // Reset state
@@ -308,6 +361,18 @@ class VoiceRoomController extends StateNotifier<VoiceRoomState> {
     _messagesSub?.cancel();
     _speakingSub?.cancel();
     _usersRealtimeSub?.unsubscribe();
+    
+    // Clean up presence tracking
+    _presenceChannel?.untrack();
+    if (_presenceChannel != null) {
+      try {
+        Supabase.instance.client.removeChannel(_presenceChannel!);
+      } catch (e) {
+        print('Error removing presence channel in dispose: $e');
+      }
+      _presenceChannel = null;
+    }
+    
     _joinTime = null;
     super.dispose();
   }

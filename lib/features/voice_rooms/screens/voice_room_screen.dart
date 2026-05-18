@@ -258,7 +258,10 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
       }
     }
 
-    final audience = members.where((m) => m.role == RoomRole.listener).toList();
+    final audience = members
+        .where((m) => m.role == RoomRole.listener)
+        .where((m) => state.activePresenceUserIds.contains(m.userId))
+        .toList();
     
     // Map audience to the format expected by AudienceListWidget
     final audienceMaps = audience.map((m) => {
@@ -293,22 +296,54 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
                     ),
                   ),
                   const SizedBox(width: Spacing.xs),
-                  Icon(Icons.info_outline, size: 16, color: colors.textSecondary),
+                  Icon(Icons.info_outline, size: 14, color: colors.textSecondary),
                 ],
               ),
-              Text(
-                '${audience.length} listeners • ${seats.where((s) => s != null).length} speakers',
-                style: textTheme.labelSmall?.copyWith(color: colors.textSecondary),
-              ),
+              if (room?.description != null && room!.description!.isNotEmpty)
+                Text(
+                  room.description!,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colors.textSecondary,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              else if (room?.category != null)
+                Text(
+                  room?.category ?? '',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colors.textSecondary,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
             ],
           ),
         ),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.keyboard_arrow_down),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            ref.read(voiceRoomControllerProvider.notifier).leaveRoom(_roomId, _currentUserId);
+            Navigator.pop(context);
+          },
         ),
         actions: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.person_outline, size: 18, color: colors.textPrimary),
+              const SizedBox(width: 4),
+              Text(
+                '${state.activePresenceUserIds.length}',
+                style: textTheme.labelMedium?.copyWith(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: Spacing.md),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.ios_share),
             onPressed: () {},
@@ -319,6 +354,128 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
         children: [
           CustomScrollView(
             slivers: [
+              // Room Details Card
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(Spacing.base, Spacing.lg, Spacing.base, 0),
+                  child: Container(
+                    padding: const EdgeInsets.all(Spacing.md),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          colors.primary.withOpacity(0.08),
+                          colors.accent.withOpacity(0.04),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: colors.primary.withOpacity(0.15),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            if (room?.category != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: colors.primary.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  room!.category!.toUpperCase(),
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: colors.primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                              ),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.greenAccent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'LIVE',
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: Colors.greenAccent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 9,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: Spacing.xs),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Cover Image Thumbnail
+                            Container(
+                              width: 54,
+                              height: 54,
+                              margin: const EdgeInsets.only(right: Spacing.sm),
+                              decoration: BoxDecoration(
+                                color: colors.surfaceAlt,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: colors.border),
+                                image: DecorationImage(
+                                  image: NetworkImage(
+                                    room?.coverImageUrl ?? _getCategoryCover(room?.category ?? 'Casual'),
+                                  ),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            // Title & Description
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    room?.title ?? 'Loading Room...',
+                                    style: textTheme.titleMedium?.copyWith(
+                                      color: colors.textPrimary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (room?.cleanDescription != null && room!.cleanDescription!.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      room!.cleanDescription!,
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: colors.textSecondary,
+                                        height: 1.4,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
               // Seats Section
               SliverToBoxAdapter(
                 child: Padding(
@@ -440,19 +597,6 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
                   onMuteToggle: () {
                     ref.read(voiceRoomControllerProvider.notifier).toggleMute();
                   },
-                  onLeave: () {
-                    ref.read(voiceRoomControllerProvider.notifier).leaveRoom(_roomId, _currentUserId);
-                    Navigator.pop(context);
-                  },
-                  onRequestMic: () {
-                    ref.read(voiceRoomControllerProvider.notifier).requestMic(_roomId, _currentUserId);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Mic requested!', style: TextStyle(color: colors.textPrimary)),
-                        backgroundColor: colors.surface,
-                      ),
-                    );
-                  },
                 ),
               ],
             ),
@@ -460,5 +604,23 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
         ],
       ),
     );
+  }
+
+  String _getCategoryCover(String category) {
+    switch (category.toLowerCase()) {
+      case 'music & chill':
+      case 'music':
+        return 'https://images.unsplash.com/photo-1614680376593-902f74a61327?q=80&w=1000';
+      case 'gaming':
+        return 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=1000';
+      case 'chat':
+      case 'social':
+        return 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=1000';
+      case 'tech':
+      case 'education':
+        return 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=1000';
+      default:
+        return 'https://images.unsplash.com/photo-1516280440614-37939bbacd6a?q=80&w=1000';
+    }
   }
 }

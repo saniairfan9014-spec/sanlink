@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:collection/collection.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/gradient_button.dart';
@@ -9,6 +11,7 @@ import '../../../widgets/themed_text_field.dart';
 import '../controllers/voice_room_controller.dart';
 import '../data/models/room_member_model.dart';
 import '../data/models/room_model.dart';
+import '../data/repositories/voice_room_repository.dart';
 import 'voice_room_screen.dart';
 
 class RoomInfoScreen extends ConsumerStatefulWidget {
@@ -50,7 +53,7 @@ class _RoomInfoScreenState extends ConsumerState<RoomInfoScreen> {
 
   void _showEditRoomDialog(BuildContext context, RoomModel room, AppColorsExtension colors, TextTheme textTheme) {
     final titleController = TextEditingController(text: room.title);
-    final descController = TextEditingController(text: room.description ?? '');
+    final descController = TextEditingController(text: room.cleanDescription ?? '');
     String selectedCategory = room.category;
     final categories = ['Music & Chill', 'Gaming', 'Chat', 'Tech', 'Social', 'Education'];
 
@@ -58,8 +61,14 @@ class _RoomInfoScreenState extends ConsumerState<RoomInfoScreen> {
       categories.add(selectedCategory);
     }
 
+    XFile? dialogSelectedImage;
+    String? currentCoverUrl = room.coverImageUrl;
+    bool dialogIsUploading = false;
+    final ImagePicker picker = ImagePicker();
+
     showDialog(
       context: context,
+      barrierDismissible: !dialogIsUploading,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -82,6 +91,76 @@ class _RoomInfoScreenState extends ConsumerState<RoomInfoScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Cover Image Selection
+                    Text('Room Cover Image', style: textTheme.labelSmall?.copyWith(color: colors.textSecondary)),
+                    const SizedBox(height: Spacing.xs),
+                    GestureDetector(
+                      onTap: dialogIsUploading ? null : () async {
+                        try {
+                          final XFile? image = await picker.pickImage(
+                            source: ImageSource.gallery,
+                            maxWidth: 1000,
+                            maxHeight: 1000,
+                            imageQuality: 85,
+                          );
+                          if (image != null) {
+                            setDialogState(() {
+                              dialogSelectedImage = image;
+                            });
+                          }
+                        } catch (e) {
+                          print('Error picking dialog image: $e');
+                        }
+                      },
+                      child: Container(
+                        height: 120,
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: Spacing.md),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(Radii.md),
+                          border: Border.all(color: colors.border),
+                          image: dialogSelectedImage != null
+                              ? DecorationImage(
+                                  image: FileImage(File(dialogSelectedImage!.path)),
+                                  fit: BoxFit.cover,
+                                )
+                              : (currentCoverUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(currentCoverUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(Radii.md),
+                          child: Container(
+                            color: Colors.black.withOpacity(0.4),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate_rounded,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  dialogSelectedImage != null || currentCoverUrl != null
+                                      ? 'Change Cover Image'
+                                      : 'Upload Cover Image',
+                                  style: textTheme.labelMedium?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
                     Text('Title', style: textTheme.labelSmall?.copyWith(color: colors.textSecondary)),
                     const SizedBox(height: Spacing.xs),
                     ThemedTextField(
@@ -118,7 +197,7 @@ class _RoomInfoScreenState extends ConsumerState<RoomInfoScreen> {
                               child: Text(cat),
                             );
                           }).toList(),
-                          onChanged: (val) {
+                          onChanged: dialogIsUploading ? null : (val) {
                             if (val != null) {
                               setDialogState(() => selectedCategory = val);
                             }
@@ -131,21 +210,46 @@ class _RoomInfoScreenState extends ConsumerState<RoomInfoScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: dialogIsUploading ? null : () => Navigator.pop(context),
                   child: Text('Cancel', style: TextStyle(color: colors.textMuted)),
                 ),
                 GradientButton(
                   label: 'Save Changes',
-                  onTap: () {
+                  loading: dialogIsUploading,
+                  onTap: dialogIsUploading ? null : () async {
                     final title = titleController.text.trim();
                     if (title.isNotEmpty) {
-                      ref.read(voiceRoomControllerProvider.notifier).updateRoomInfo(
-                        room.id,
-                        title,
-                        descController.text.trim(),
-                        selectedCategory,
-                      );
-                      Navigator.pop(context);
+                      setDialogState(() => dialogIsUploading = true);
+                      try {
+                        String? coverUrl = currentCoverUrl;
+                        if (dialogSelectedImage != null) {
+                          final repository = ref.read(voiceRoomRepositoryProvider);
+                          final bytes = await dialogSelectedImage!.readAsBytes();
+                          coverUrl = await repository.uploadRoomCover(
+                            filePath: dialogSelectedImage!.path,
+                            fileBytes: bytes,
+                            fileName: dialogSelectedImage!.name,
+                            contentType: 'image/${dialogSelectedImage!.name.split('.').last}',
+                          );
+                        }
+                        
+                        final desc = descController.text.trim();
+                        final finalDesc = coverUrl != null
+                            ? '$desc||cover_url||$coverUrl'
+                            : desc;
+
+                        await ref.read(voiceRoomControllerProvider.notifier).updateRoomInfo(
+                          room.id,
+                          title,
+                          finalDesc.isEmpty ? null : finalDesc,
+                          selectedCategory,
+                        );
+                        if (context.mounted) Navigator.pop(context);
+                      } catch (e) {
+                        print('Error saving room changes: $e');
+                      } finally {
+                        setDialogState(() => dialogIsUploading = false);
+                      }
                     }
                   },
                 ),
@@ -211,7 +315,7 @@ class _RoomInfoScreenState extends ConsumerState<RoomInfoScreen> {
                 fit: StackFit.expand,
                 children: [
                   Image.network(
-                    _getCategoryCover(room.category),
+                    room.coverImageUrl ?? _getCategoryCover(room.category),
                     fit: BoxFit.cover,
                   ),
                   Container(
@@ -270,10 +374,10 @@ class _RoomInfoScreenState extends ConsumerState<RoomInfoScreen> {
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  if (room.description != null && room.description!.isNotEmpty) ...[
+                  if (room.cleanDescription != null && room.cleanDescription!.isNotEmpty) ...[
                     const SizedBox(height: Spacing.sm),
                     Text(
-                      room.description!,
+                      room.cleanDescription!,
                       style: textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
                     ),
                   ],

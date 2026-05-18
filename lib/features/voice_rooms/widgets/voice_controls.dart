@@ -6,15 +6,11 @@ import '../../../widgets/glass_card.dart';
 class VoiceControls extends StatelessWidget {
   final bool isMuted;
   final VoidCallback onMuteToggle;
-  final VoidCallback onLeave;
-  final VoidCallback onRequestMic;
 
   const VoiceControls({
     super.key,
     required this.isMuted,
     required this.onMuteToggle,
-    required this.onLeave,
-    required this.onRequestMic,
   });
 
   @override
@@ -34,7 +30,7 @@ class VoiceControls extends StatelessWidget {
           vertical: Spacing.sm,
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _ControlButton(
               icon: isMuted ? Icons.mic_off : Icons.mic,
@@ -43,20 +39,6 @@ class VoiceControls extends StatelessWidget {
               onTap: onMuteToggle,
               color: isMuted ? colors.surfaceAlt : colors.primary,
               iconColor: isMuted ? colors.textPrimary : Colors.white,
-            ),
-            _ControlButton(
-              icon: Icons.back_hand,
-              label: 'Request',
-              onTap: onRequestMic,
-              color: colors.surfaceAlt,
-              iconColor: colors.textPrimary,
-            ),
-            _ControlButton(
-              icon: Icons.exit_to_app,
-              label: 'Leave',
-              onTap: onLeave,
-              color: colors.red.withOpacity(0.15),
-              iconColor: colors.red,
             ),
           ],
         ),

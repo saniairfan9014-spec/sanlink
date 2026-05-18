@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/agora_service.dart';
 import '../services/realtime_service.dart';
@@ -48,6 +49,18 @@ class VoiceRoomRepository {
     category: category,
     hostId: hostId,
     channelName: channelName,
+  );
+
+  Future<String?> uploadRoomCover({
+    String? filePath,
+    Uint8List? fileBytes,
+    required String fileName,
+    String? contentType,
+  }) => _roomService.uploadRoomCover(
+    filePath: filePath,
+    fileBytes: fileBytes,
+    fileName: fileName,
+    contentType: contentType,
   );
 
   Future<void> joinRoom({
@@ -110,5 +123,9 @@ class VoiceRoomRepository {
       description: description,
       category: category,
     );
+  }
+
+  Future<void> updateMemberMute(String roomId, String userId, bool isMuted) async {
+    await _roomService.updateMemberMute(roomId, userId, isMuted);
   }
 }

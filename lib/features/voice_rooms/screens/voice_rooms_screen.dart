@@ -6,7 +6,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../widgets/shimmer_loading.dart';
 import '../widgets/voice_room_card.dart';
 import '../controllers/voice_rooms_list_provider.dart';
+import '../controllers/voice_room_controller.dart';
 import '../data/models/room_model.dart';
+import '../data/models/room_member_model.dart';
 import 'create_room_screen.dart';
 import 'voice_room_screen.dart';
 
@@ -44,6 +46,17 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
 
   List<RoomModel> _filterRooms(List<RoomModel> rooms) {
     var filtered = rooms;
+
+    // Filter out the active room the user is currently inside
+    final voiceRoomState = ref.read(voiceRoomControllerProvider);
+    final activeRoomId = voiceRoomState.room?.id;
+    if (activeRoomId != null) {
+      filtered = filtered.where((r) => r.id != activeRoomId).toList();
+    }
+
+    // Ensure absolutely no duplicate rooms exist in the list
+    final seen = <String>{};
+    filtered = filtered.where((r) => seen.add(r.id)).toList();
 
     // Search filter
     if (_searchQuery.isNotEmpty) {
@@ -88,6 +101,9 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
     final textTheme = context.textTheme;
     final roomsAsync = ref.watch(activeRoomsProvider);
 
+    final voiceRoomState = ref.watch(voiceRoomControllerProvider);
+    final inActiveRoom = voiceRoomState.room != null;
+
     return Scaffold(
       backgroundColor: colors.bg,
       body: Column(
@@ -124,15 +140,17 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
       ),
 
       // ── FAB ──
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const CreateRoomScreen()));
-        },
-        backgroundColor: colors.primary,
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
-      ),
+      floatingActionButton: inActiveRoom
+          ? null
+          : FloatingActionButton(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const CreateRoomScreen()));
+              },
+              backgroundColor: colors.primary,
+              child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+            ),
     );
   }
 
@@ -314,6 +332,7 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
                     hostName: room.hostId,
                     hostImage:
                         'https://i.pravatar.cc/150?u=${room.hostId}',
+                    roomImage: room.coverImageUrl,
                     listenerCount: room.listenersCount,
                     speakerCount: 1,
                     onTap: () {
@@ -337,6 +356,15 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
   // ────────────────── My Room Highlight Card ────────────────────
   Widget _buildMyRoomCard(
       RoomModel? myRoom, AppColorsExtension colors, TextTheme textTheme) {
+    final voiceRoomState = ref.watch(voiceRoomControllerProvider);
+    final activeRoom = voiceRoomState.room;
+    final displayRoom = activeRoom ?? myRoom;
+
+    final isLiveActiveSession = activeRoom != null;
+    final liveListenersCount = isLiveActiveSession
+        ? voiceRoomState.members.where((m) => m.role == RoomRole.listener).length
+        : (displayRoom?.listenersCount ?? 0);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -351,9 +379,26 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.primary.withOpacity(0.25)),
       ),
-      child: myRoom != null
+      child: displayRoom != null
           ? Row(
               children: [
+                // Room Cover image DP
+                Container(
+                  width: 52,
+                  height: 52,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceAlt,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colors.primary.withOpacity(0.3)),
+                    image: DecorationImage(
+                      image: NetworkImage(
+                        displayRoom.coverImageUrl ?? 'https://images.unsplash.com/photo-1516280440614-37939bbacd6a?q=80&w=200',
+                      ),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
                 // Room info
                 Expanded(
                   child: Column(
@@ -378,23 +423,22 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text('Your Room is Live',
-
-                              style: TextStyle(
-
+                          Text(
+                              isLiveActiveSession ? 'Active Session Live' : 'Your Room is Live',
+                              style: const TextStyle(
                                   color: Colors.greenAccent,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700)),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text(myRoom.title,
+                      Text(displayRoom.title,
                           style: textTheme.titleMedium?.copyWith(
                               color: colors.textPrimary,
                               fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       Text(
-                          '${myRoom.listenersCount} listeners',
+                          '$liveListenersCount listeners',
                           style: TextStyle(
                               color: colors.textSecondary,
                               fontSize: 12)),
@@ -409,8 +453,8 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
                       context,
                       MaterialPageRoute(
                         builder: (_) => VoiceRoomScreen(
-                          roomId: myRoom.id,
-                          channelName: myRoom.channelName,
+                          roomId: displayRoom.id,
+                          channelName: displayRoom.channelName,
                         ),
                       ),
                     );

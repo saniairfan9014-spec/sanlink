@@ -12,6 +12,28 @@ class RoomModel {
   final DateTime createdAt;
   final List<int> lockedSeats;
 
+  String? get coverImageUrl {
+    if (description == null) return null;
+    if (description!.contains('||cover_url||')) {
+      final parts = description!.split('||cover_url||');
+      if (parts.length > 1 && parts[1].trim().isNotEmpty) {
+        return parts[1].trim();
+      }
+    }
+    return null;
+  }
+
+  String? get cleanDescription {
+    if (description == null) return null;
+    if (description!.contains('||cover_url||')) {
+      final parts = description!.split('||cover_url||');
+      if (parts.isNotEmpty) {
+        return parts[0].trim();
+      }
+    }
+    return description;
+  }
+
   const RoomModel({
     required this.id,
     required this.title,

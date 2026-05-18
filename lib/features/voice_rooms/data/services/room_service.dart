@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/room_model.dart';
@@ -9,6 +11,44 @@ final roomServiceProvider = Provider<RoomService>((ref) {
 
 class RoomService {
   final SupabaseClient _supabase = Supabase.instance.client;
+
+  Future<String?> uploadRoomCover({
+    String? filePath,
+    Uint8List? fileBytes,
+    required String fileName,
+    String? contentType,
+  }) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return null;
+
+    try {
+      final fileExt = fileName.split('.').last;
+      final newFileName = 'room_cover_${user.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+
+      if (kIsWeb) {
+        if (fileBytes == null) return null;
+        await _supabase.storage.from('post-media').uploadBinary(
+          newFileName,
+          fileBytes,
+          fileOptions: FileOptions(contentType: contentType),
+        );
+      } else {
+        if (filePath == null) return null;
+        final file = File(filePath);
+        await _supabase.storage.from('post-media').upload(
+          newFileName,
+          file,
+          fileOptions: FileOptions(contentType: contentType),
+        );
+      }
+
+      final publicUrl = _supabase.storage.from('post-media').getPublicUrl(newFileName);
+      return publicUrl;
+    } catch (e) {
+      print('Error uploading room cover: $e');
+      return null;
+    }
+  }
 
   Future<RoomModel> createRoom({
     required String title,
@@ -108,14 +148,66 @@ class RoomService {
       'mic_seat': member.micSeat,
       'is_muted': member.isMuted,
     }, onConflict: 'room_id, user_id');
+
+    // Dynamically update room listeners count derived only from active room_members
+    try {
+      final countResponse = await _supabase
+          .from('room_members')
+          .select('id')
+          .eq('room_id', member.roomId)
+          .eq('role', 'listener');
+      final activeListenersCount = countResponse.length;
+      await _supabase
+          .from('rooms')
+          .update({'listeners_count': activeListenersCount})
+          .eq('id', member.roomId);
+    } catch (e) {
+      print('Error updating listener count: $e');
+    }
   }
 
   Future<void> leaveRoom(String roomId, String userId) async {
     await _supabase.from('room_members').delete().eq('room_id', roomId).eq('user_id', userId);
+
+    // Dynamically update room listeners count derived only from active room_members
+    try {
+      final countResponse = await _supabase
+          .from('room_members')
+          .select('id')
+          .eq('room_id', roomId)
+          .eq('role', 'listener');
+      final activeListenersCount = countResponse.length;
+      await _supabase
+          .from('rooms')
+          .update({'listeners_count': activeListenersCount})
+          .eq('id', roomId);
+    } catch (e) {
+      print('Error updating listener count on leave: $e');
+    }
   }
   
   Future<void> updateMemberRole(String roomId, String userId, RoomRole role) async {
     await _supabase.from('room_members').update({'role': role.name}).eq('room_id', roomId).eq('user_id', userId);
+
+    // Dynamically update room listeners count derived only from active room_members
+    try {
+      final countResponse = await _supabase
+          .from('room_members')
+          .select('id')
+          .eq('room_id', roomId)
+          .eq('role', 'listener');
+      final activeListenersCount = countResponse.length;
+      await _supabase
+          .from('rooms')
+          .update({'listeners_count': activeListenersCount})
+          .eq('id', roomId);
+    } catch (e) {
+      print('Error updating listener count on role update: $e');
+    }
+  }
+
+  Future<void> updateMemberMute(String roomId, String userId, bool isMuted) async {
+    await _supabase.from('room_members').update({'is_muted': isMuted}).eq('room_id', roomId).eq('user_id', userId);
   }
   
   Future<void> sendMessage(String roomId, String userId, String content) async {

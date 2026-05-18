@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/themed_text_field.dart';
 import '../../../widgets/gradient_button.dart';
@@ -31,6 +33,26 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
   ];
 
   bool _isLoading = false;
+  XFile? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImage = image;
+        });
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+    }
+  }
 
   Future<void> _createRoom() async {
     if (!_formKey.currentState!.validate()) return;
@@ -41,12 +63,29 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
 
-      final channelName = 'room_${DateTime.now().millisecondsSinceEpoch}';
       final repository = ref.read(voiceRoomRepositoryProvider);
+
+      String? coverUrl;
+      if (_selectedImage != null) {
+        final bytes = await _selectedImage!.readAsBytes();
+        coverUrl = await repository.uploadRoomCover(
+          filePath: _selectedImage!.path,
+          fileBytes: bytes,
+          fileName: _selectedImage!.name,
+          contentType: 'image/${_selectedImage!.name.split('.').last}',
+        );
+      }
+
+      final channelName = 'room_${DateTime.now().millisecondsSinceEpoch}';
+      
+      final rawDescription = _descriptionController.text.trim();
+      final finalDescription = coverUrl != null
+          ? '$rawDescription||cover_url||$coverUrl'
+          : rawDescription;
 
       final room = await repository.createRoom(
         title: _titleController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+        description: finalDescription.isEmpty ? null : finalDescription,
         category: _selectedCategory,
         hostId: user.id,
         channelName: channelName,
@@ -111,6 +150,66 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
         child: ListView(
           padding: const EdgeInsets.all(Spacing.xl),
           children: [
+            // Cover Image Picker
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                height: 150,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: colors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: colors.border),
+                  image: _selectedImage != null
+                      ? DecorationImage(
+                          image: FileImage(File(_selectedImage!.path)),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    color: _selectedImage != null
+                        ? Colors.black.withOpacity(0.4)
+                        : Colors.transparent,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _selectedImage != null
+                              ? Icons.photo_library_rounded
+                              : Icons.add_photo_alternate_rounded,
+                          color: Colors.white,
+                          size: 36,
+                        ),
+                        const SizedBox(height: Spacing.xs),
+                        Text(
+                          _selectedImage != null
+                              ? 'Change Cover Image'
+                              : 'Upload Room Cover Image',
+                          style: textTheme.labelLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (_selectedImage == null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Select a premium photo for your live session',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: Spacing.xl),
+
             // Title Input
             Text(
               'ROOM TITLE',
