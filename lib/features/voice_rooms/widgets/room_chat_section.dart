@@ -8,6 +8,7 @@ class RoomChatSection extends StatefulWidget {
   final List<RoomMessageModel> messages;
   final String currentUserId;
   final ValueChanged<String> onSendMessage;
+  final Map<String, Map<String, dynamic>> userProfiles;
   
   const RoomChatSection({
     super.key,
@@ -15,6 +16,7 @@ class RoomChatSection extends StatefulWidget {
     required this.messages,
     required this.currentUserId,
     required this.onSendMessage,
+    this.userProfiles = const {},
   });
 
   @override
@@ -111,6 +113,9 @@ class _RoomChatSectionState extends State<RoomChatSection> {
               itemBuilder: (context, index) {
                 final msg = widget.messages[index];
                 final isMe = msg.userId == widget.currentUserId;
+                final profile = widget.userProfiles[msg.userId];
+                final name = profile?['name'] ?? 'User';
+                final avatarUrl = profile?['profile_pic'] ?? profile?['avatar_url'] as String?;
                 
                 return Row(
                   mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -119,7 +124,16 @@ class _RoomChatSectionState extends State<RoomChatSection> {
                     if (!isMe) ...[
                       CircleAvatar(
                         radius: 14,
-                        backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=${msg.userId}'),
+                        backgroundColor: colors.surfaceAlt,
+                        backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
+                            ? NetworkImage(avatarUrl)
+                            : null,
+                        child: (avatarUrl == null || avatarUrl.isEmpty)
+                            ? Text(
+                                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                style: textTheme.labelSmall?.copyWith(color: colors.textPrimary),
+                              )
+                            : null,
                       ),
                       const SizedBox(width: Spacing.sm),
                     ],
@@ -131,7 +145,7 @@ class _RoomChatSectionState extends State<RoomChatSection> {
                             Padding(
                               padding: const EdgeInsets.only(left: 4, bottom: 4),
                               child: Text(
-                                msg.userId,
+                                name,
                                 style: textTheme.labelSmall?.copyWith(
                                   color: colors.textSecondary,
                                 ),

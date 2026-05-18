@@ -79,10 +79,36 @@ class VoiceRoomRepository {
     await _roomService.updateMemberRole(roomId, userId, RoomRole.speaker);
   }
 
-  Future<void> claimSeat(String roomId, String userId, String userName, String? avatarUrl, int seatIndex) async {
-    await _roomService.claimSeat(roomId, userId, userName, avatarUrl, seatIndex);
+  Future<bool> claimSeat(String roomId, String userId, String userName, String? avatarUrl, int seatIndex) async {
+    return _roomService.claimSeat(roomId, userId, userName, avatarUrl, seatIndex);
+  }
+
+  Future<void> leaveSeat(String roomId, String userId) async {
+    await _roomService.leaveSeat(roomId, userId);
+  }
+
+  Future<void> lockSeat(String roomId, int seatIndex) async {
+    await _roomService.lockSeat(roomId, seatIndex);
+  }
+
+  Future<void> unlockSeat(String roomId, int seatIndex) async {
+    await _roomService.unlockSeat(roomId, seatIndex);
   }
 
   Future<void> sendMessage(String roomId, String userId, String content) =>
       _roomService.sendMessage(roomId, userId, content);
+
+  Future<void> updateRoom({
+    required String roomId,
+    required String title,
+    String? description,
+    required String category,
+  }) async {
+    await _roomService.updateRoom(
+      roomId: roomId,
+      title: title,
+      description: description,
+      category: category,
+    );
+  }
 }

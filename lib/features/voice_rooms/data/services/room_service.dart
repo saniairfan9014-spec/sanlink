@@ -42,18 +42,61 @@ class RoomService {
     return room;
   }
 
-  Future<void> claimSeat(String roomId, String userId, String userName, String? avatarUrl, int seatIndex) async {
-    await _supabase.from('room_members').upsert({
-      'room_id': roomId,
-      'user_id': userId,
-      'mic_seat': seatIndex,
-      'role': 'speaker',
-      'is_muted': false,
-    }, onConflict: 'room_id, user_id');
+  Future<bool> claimSeat(String roomId, String userId, String userName, String? avatarUrl, int seatIndex) async {
+    try {
+      final response = await _supabase.rpc('claim_mic_seat', params: {
+        'p_room_id': roomId,
+        'p_user_id': userId,
+        'p_seat_index': seatIndex,
+      });
+      return response == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> leaveSeat(String roomId, String userId) async {
+    await _supabase.rpc('leave_mic_seat', params: {
+      'p_room_id': roomId,
+      'p_user_id': userId,
+    });
+  }
+
+  Future<void> lockSeat(String roomId, int seatIndex) async {
+    final roomData = await _supabase.from('rooms').select('locked_seats').eq('id', roomId).single();
+    final List<dynamic> current = roomData['locked_seats'] ?? [];
+    final List<int> updated = List<int>.from(current);
+    if (!updated.contains(seatIndex)) {
+      updated.add(seatIndex);
+      await _supabase.from('rooms').update({'locked_seats': updated}).eq('id', roomId);
+    }
+  }
+
+  Future<void> unlockSeat(String roomId, int seatIndex) async {
+    final roomData = await _supabase.from('rooms').select('locked_seats').eq('id', roomId).single();
+    final List<dynamic> current = roomData['locked_seats'] ?? [];
+    final List<int> updated = List<int>.from(current);
+    if (updated.contains(seatIndex)) {
+      updated.remove(seatIndex);
+      await _supabase.from('rooms').update({'locked_seats': updated}).eq('id', roomId);
+    }
   }
 
   Future<void> updateRoomStatus(String roomId, bool isLive) async {
     await _supabase.from('rooms').update({'is_live': isLive}).eq('id', roomId);
+  }
+
+  Future<void> updateRoom({
+    required String roomId,
+    required String title,
+    String? description,
+    required String category,
+  }) async {
+    await _supabase.from('rooms').update({
+      'title': title,
+      'description': description,
+      'category': category,
+    }).eq('id', roomId);
   }
 
   Future<void> joinRoom(RoomMemberModel member) async {

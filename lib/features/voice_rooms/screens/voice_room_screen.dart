@@ -46,11 +46,198 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
     });
   }
 
+  void _handleSeatTap({
+    required int seatIndex,
+    required RoomMemberModel? seatUser,
+    required bool isLocked,
+    required bool isHost,
+    required AppColorsExtension colors,
+    required VoiceRoomState state,
+  }) {
+    if (state.isClaimingSeat) return;
+
+    if (seatUser == null) {
+      // Empty seat
+      if (isLocked) {
+        if (isHost) {
+          // Host can unlock
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: colors.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (_) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.lock_open, color: colors.primary),
+                    title: Text('Unlock Seat $seatIndex', style: TextStyle(color: colors.textPrimary)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      ref.read(voiceRoomControllerProvider.notifier).unlockSeat(_roomId, seatIndex);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Seat $seatIndex is locked by host', style: TextStyle(color: colors.textPrimary)),
+              backgroundColor: colors.surface,
+            ),
+          );
+        }
+      } else {
+        // Unlocked empty seat
+        if (isHost) {
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: colors.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (_) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.mic, color: colors.primary),
+                    title: Text('Claim Seat $seatIndex', style: TextStyle(color: colors.textPrimary)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      final user = Supabase.instance.client.auth.currentUser;
+                      final fallbackName = user?.email?.split('@')[0] ?? 'User';
+                      ref.read(voiceRoomControllerProvider.notifier).claimSeat(
+                        _roomId,
+                        _currentUserId,
+                        fallbackName,
+                        null,
+                        seatIndex,
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.lock, color: colors.textSecondary),
+                    title: Text('Lock Seat $seatIndex', style: TextStyle(color: colors.textPrimary)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      ref.read(voiceRoomControllerProvider.notifier).lockSeat(_roomId, seatIndex);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        } else {
+          // Regular listener claiming seat
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              backgroundColor: colors.surface,
+              title: Text('Claim Seat', style: TextStyle(color: colors.textPrimary)),
+              content: Text('Would you like to claim seat $seatIndex and become a speaker?', style: TextStyle(color: colors.textSecondary)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    final user = Supabase.instance.client.auth.currentUser;
+                    final fallbackName = user?.email?.split('@')[0] ?? 'User';
+                    ref.read(voiceRoomControllerProvider.notifier).claimSeat(
+                      _roomId,
+                      _currentUserId,
+                      fallbackName,
+                      null,
+                      seatIndex,
+                    );
+                  },
+                  child: Text('Claim', style: TextStyle(color: colors.primary)),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    } else {
+      // Occupied seat
+      if (seatUser.userId == _currentUserId) {
+        // Tapped own seat: Leave option
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: colors.surface,
+            title: Text('Leave Seat', style: TextStyle(color: colors.textPrimary)),
+            content: Text('Would you like to leave your seat and return to the audience?', style: TextStyle(color: colors.textSecondary)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  ref.read(voiceRoomControllerProvider.notifier).leaveSeat(_roomId, _currentUserId);
+                },
+                child: Text('Leave', style: TextStyle(color: colors.red)),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Tapped someone else's seat
+        if (isHost) {
+          // Host controls for occupied seat
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: colors.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (_) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.exit_to_app, color: colors.red),
+                    title: Text('Remove ${seatUser.userName ?? 'Speaker'} from Seat', style: TextStyle(color: colors.red)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      ref.read(voiceRoomControllerProvider.notifier).leaveSeat(_roomId, seatUser.userId);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final textTheme = context.textTheme;
     final state = ref.watch(voiceRoomControllerProvider);
+
+    ref.listen<VoiceRoomState>(voiceRoomControllerProvider, (previous, next) {
+      if (next.claimError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.claimError!, style: TextStyle(color: colors.textPrimary)),
+            backgroundColor: colors.surface,
+          ),
+        );
+        ref.read(voiceRoomControllerProvider.notifier).clearClaimError();
+      }
+    });
 
     if (state.isLoading) {
       return Scaffold(
@@ -61,6 +248,7 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
 
     final room = state.room;
     final members = state.members;
+    final isHost = room?.hostId == _currentUserId;
     
     // Use exact 5 seats mapped by micSeat (1-5)
     final List<RoomMemberModel?> seats = List.generate(5, (_) => null);
@@ -93,11 +281,15 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    room?.title ?? 'Loading...',
-                    style: textTheme.titleMedium?.copyWith(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.bold,
+                  Flexible(
+                    child: Text(
+                      room?.title ?? 'Loading...',
+                      style: textTheme.titleMedium?.copyWith(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: Spacing.xs),
@@ -138,30 +330,51 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
                     children: seats.asMap().entries.map((entry) {
                       final index = entry.key;
                       final seat = entry.value;
+                      final seatIndex = index + 1;
+                      final isLocked = room?.lockedSeats.contains(seatIndex) ?? false;
 
                       if (seat == null) {
-                        return MicSeatWidget(
-                          seatIndex: index + 1,
-                          onTap: () {
-                            final user = Supabase.instance.client.auth.currentUser;
-                            final fallbackName = user?.email?.split('@')[0] ?? 'User';
-                            ref.read(voiceRoomControllerProvider.notifier).claimSeat(
-                              _roomId, 
-                              _currentUserId, 
-                              fallbackName, 
-                              null, 
-                              index + 1,
-                            );
-                          },
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            MicSeatWidget(
+                              seatIndex: seatIndex,
+                              isLocked: isLocked,
+                              onTap: () => _handleSeatTap(
+                                seatIndex: seatIndex,
+                                seatUser: null,
+                                isLocked: isLocked,
+                                isHost: isHost,
+                                colors: colors,
+                                state: state,
+                              ),
+                            ),
+                            if (state.isClaimingSeat)
+                              const Positioned(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                          ],
                         );
                       }
                       return MicSeatWidget(
-                        seatIndex: index + 1,
+                        seatIndex: seatIndex,
                         userName: seat.userName ?? 'Speaker',
                         imageUrl: seat.avatarUrl,
                         isSpeaking: seat.isSpeaking,
                         isMuted: seat.isMuted,
-                        onTap: () {},
+                        isLocked: isLocked,
+                        onTap: () => _handleSeatTap(
+                          seatIndex: seatIndex,
+                          seatUser: seat,
+                          isLocked: isLocked,
+                          isHost: isHost,
+                          colors: colors,
+                          state: state,
+                        ),
                       );
                     }).toList(),
                   ),
@@ -217,6 +430,7 @@ class _VoiceRoomScreenState extends ConsumerState<VoiceRoomScreen> {
                 RoomChatSection(
                   messages: state.messages,
                   currentUserId: _currentUserId,
+                  userProfiles: state.userProfiles,
                   onSendMessage: (text) {
                     ref.read(voiceRoomControllerProvider.notifier).sendMessage(_roomId, _currentUserId, text);
                   },

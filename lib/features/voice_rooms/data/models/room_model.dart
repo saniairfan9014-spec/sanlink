@@ -10,6 +10,7 @@ class RoomModel {
   final bool isLive;
   final int listenersCount;
   final DateTime createdAt;
+  final List<int> lockedSeats;
 
   const RoomModel({
     required this.id,
@@ -21,6 +22,7 @@ class RoomModel {
     this.isLive = true,
     this.listenersCount = 0,
     required this.createdAt,
+    this.lockedSeats = const [],
   });
 
   RoomModel copyWith({
@@ -33,6 +35,7 @@ class RoomModel {
     bool? isLive,
     int? listenersCount,
     DateTime? createdAt,
+    List<int>? lockedSeats,
   }) {
     return RoomModel(
       id: id ?? this.id,
@@ -44,6 +47,7 @@ class RoomModel {
       isLive: isLive ?? this.isLive,
       listenersCount: listenersCount ?? this.listenersCount,
       createdAt: createdAt ?? this.createdAt,
+      lockedSeats: lockedSeats ?? this.lockedSeats,
     );
   }
 
@@ -58,6 +62,7 @@ class RoomModel {
       'is_live': isLive,
       'listeners_count': listenersCount,
       'created_at': createdAt.toIso8601String(),
+      'locked_seats': lockedSeats,
     };
   }
 
@@ -71,9 +76,12 @@ class RoomModel {
       channelName: map['channel_name'] ?? '',
       isLive: map['is_live'] ?? true,
       listenersCount: map['listeners_count']?.toInt() ?? 0,
-      createdAt: map['created_at'] != null 
-          ? DateTime.parse(map['created_at']) 
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'])
           : DateTime.now(),
+      lockedSeats: map['locked_seats'] != null
+          ? List<int>.from(map['locked_seats'] as List)
+          : const [],
     );
   }
 
@@ -90,7 +98,8 @@ class RoomModel {
       other.channelName == channelName &&
       other.isLive == isLive &&
       other.listenersCount == listenersCount &&
-      other.createdAt == createdAt;
+      other.createdAt == createdAt &&
+      listEquals(other.lockedSeats, lockedSeats);
   }
 
   @override
@@ -103,6 +112,7 @@ class RoomModel {
       channelName.hashCode ^
       isLive.hashCode ^
       listenersCount.hashCode ^
-      createdAt.hashCode;
+      createdAt.hashCode ^
+      lockedSeats.hashCode;
   }
 }
