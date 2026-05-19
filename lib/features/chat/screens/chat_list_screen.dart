@@ -236,7 +236,7 @@ class _ChatTile extends StatelessWidget {
         ),
         title: Row(children: [
           Expanded(child: Text(friendName, style: TextStyle(
-            color: isUnread ? Colors.white : colors.textPrimary,
+            color: isUnread ? colors.primary : colors.textPrimary,
             fontWeight: isUnread ? FontWeight.w900 : FontWeight.bold,
             fontSize: 15,
           ))),

@@ -83,19 +83,19 @@ class AppGradients {
   AppGradients._();
 
   static const primary = LinearGradient(
-    colors: [Color(0xFF7C5CFC), Color(0xFF9B7BFF)],
+    colors: [Color(0xFF6C4FF8), Color(0xFF9B7CFF)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const primaryAccent = LinearGradient(
-    colors: [Color(0xFF7C5CFC), Color(0xFF00E5FF)],
+    colors: [Color(0xFF6C4FF8), Color(0xFF9B7CFF)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const accent = LinearGradient(
-    colors: [Color(0xFF00E5FF), Color(0xFF00B4D8)],
+    colors: [Color(0xFFFF6B9D), Color(0xFFFF8FB4)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -122,7 +122,7 @@ class AppGradients {
 // ─── Theme Palettes ───────────────────────────────────────────────────────────
 
 class AppThemes {
-  // Dark Theme Colors
+  // Dark Theme Colors (kept for dark mode support)
   static const darkBg = Color(0xFF0A0A0F);
   static const darkSurface = Color(0xFF13131A);
   static const darkSurfaceAlt = Color(0xFF1C1C27);
@@ -132,21 +132,21 @@ class AppThemes {
   static const darkTextMuted = Color(0xFF44445A);
 
   // Light Theme Colors
-  static const lightBg = Color(0xFFF5F5FA);
+  static const lightBg = Color(0xFFF6F7FB);
   static const lightSurface = Color(0xFFFFFFFF);
-  static const lightSurfaceAlt = Color(0xFFF0F0F5);
-  static const lightBorder = Color(0xFFE0E0E8);
-  static const lightTextPrimary = Color(0xFF1A1A2E);
-  static const lightTextSecondary = Color(0xFF6B6B8A);
-  static const lightTextMuted = Color(0xFF9999B3);
+  static const lightSurfaceAlt = Color(0xFFF0F1F7);
+  static const lightBorder = Color(0xFFE2E2EF);
+  static const lightTextPrimary = Color(0xFF0F0F1A);
+  static const lightTextSecondary = Color(0xFF4A4A6A);
+  static const lightTextMuted = Color(0xFF9494B0);
 
   // Shared Brand Colors
-  static const primary = Color(0xFF7C5CFC);
-  static const primaryLight = Color(0xFF9B7BFF);
-  static const primaryGlow = Color(0x557C5CFC);
-  static const accent = Color(0xFF00E5FF);
-  static const accentGlow = Color(0x3300E5FF);
-  static const gold = Color(0xFFFFD700);
+  static const primary = Color(0xFF6C4FF8);
+  static const primaryLight = Color(0xFF9B7CFF);
+  static const primaryGlow = Color(0x1F6C4FF8);  // rgba(108,79,248,0.12)
+  static const accent = Color(0xFFFF6B9D);
+  static const accentGlow = Color(0x1FFF6B9D);  // rgba(255,107,157,0.12)
+  static const gold = Color(0xFFD4900A);
   static const red = Color(0xFFFF4757);
   static const green = Color(0xFF00E676);
   static const orange = Color(0xFFFF6D00);
@@ -307,7 +307,7 @@ class AppThemes {
       onSecondary: Colors.white,
       onSurface: darkTextPrimary,
       onError: Colors.white,
-    ),
+    ).copyWith(brightness: Brightness.dark),
     appBarTheme: AppBarTheme(
       backgroundColor: darkSurface,
       elevation: 0,
@@ -413,9 +413,9 @@ class AppThemes {
         border: darkBorder,
         primary: primary,
         primaryLight: primaryLight,
-        primaryGlow: primaryGlow,
+        primaryGlow: Color(0x1F6C4FF8),
         accent: accent,
-        accentGlow: accentGlow,
+        accentGlow: Color(0x1FFF6B9D),
         gold: gold,
         red: red,
         green: green,
@@ -553,9 +553,9 @@ class AppThemes {
         border: lightBorder,
         primary: primary,
         primaryLight: primaryLight,
-        primaryGlow: primaryGlow,
+        primaryGlow: Color(0x1F6C4FF8),
         accent: accent,
-        accentGlow: accentGlow,
+        accentGlow: Color(0x1FFF6B9D),
         gold: gold,
         red: red,
         green: green,
@@ -563,8 +563,8 @@ class AppThemes {
         textPrimary: lightTextPrimary,
         textSecondary: lightTextSecondary,
         textMuted: lightTextMuted,
-        shimmerBase: Color(0xFFE8E8F0),
-        shimmerHighlight: Color(0xFFF5F5FA),
+        shimmerBase: Color(0xFFE6E6F0),
+        shimmerHighlight: Color(0xFFF6F7FB),
       ),
     ],
   );

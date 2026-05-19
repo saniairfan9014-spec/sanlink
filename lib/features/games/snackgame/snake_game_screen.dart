@@ -9,12 +9,12 @@ class _SnakeC {
   static const primaryGlow = Color(0x6600FF88);
   static const accent = Color(0xFF00D1FF);
   static const accentGlow = Color(0x6600D1FF);
-  static const bg = Color(0xFF020617);
-  static const surface = Color(0xFF0F172A);
-  static const glass = Color(0x0DFFFFFF);
-  static const border = Color(0x1AFFFFFF);
-  static const textPrimary = Color(0xFFF1F5F9);
-  static const textSecondary = Color(0xFF94A3B8);
+  static const bg = Color(0xFFF6F7FB);
+  static const surface = Color(0xFFFFFFFF);
+  static const glass = Color(0x14000000);
+  static const border = Color(0xFFE2E2EF);
+  static const textPrimary = Color(0xFF0F0F1A);
+  static const textSecondary = Color(0xFF4A4A6A);
 }
 
 class SnakeGameScreen extends StatefulWidget {
@@ -172,7 +172,7 @@ class _SnakeGameScreenState extends State<SnakeGameScreen> with TickerProviderSt
                 const SizedBox(height: 16),
                 Text(
                   "SCORE: $score",
-                  style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: _SnakeC.textPrimary, fontSize: 32, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   "Difficulty: ${widget.difficultyName}",
@@ -231,7 +231,7 @@ class _SnakeGameScreenState extends State<SnakeGameScreen> with TickerProviderSt
         title: Text(
           widget.difficultyName.toUpperCase(),
           style: const TextStyle(
-            color: Colors.white,
+            color: _SnakeC.textPrimary,
             fontWeight: FontWeight.w900,
             letterSpacing: 2,
             fontSize: 16,
@@ -241,7 +241,7 @@ class _SnakeGameScreenState extends State<SnakeGameScreen> with TickerProviderSt
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _SnakeC.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),

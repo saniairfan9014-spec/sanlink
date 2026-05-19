@@ -7,11 +7,11 @@ class TicTacToeCategoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F), // Deep space background
+      backgroundColor: const Color(0xFFF6F7FB),
       appBar: AppBar(
         title: const Text(
           "Tic Tac Toe Royale",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F0F1A)),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -27,7 +27,7 @@ class TicTacToeCategoryScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: Color(0xFF0F0F1A),
                 letterSpacing: 1.2,
               ),
             ),
@@ -37,7 +37,7 @@ class TicTacToeCategoryScreen extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white60,
+                color: Color(0xFF4A4A6A),
               ),
             ),
             const SizedBox(height: 48),
@@ -46,7 +46,7 @@ class TicTacToeCategoryScreen extends StatelessWidget {
               title: "AI Battle",
               description: "Face our advanced Minimax algorithm",
               icon: Icons.smart_toy_rounded,
-              color: const Color(0xFF00E5FF),
+              color: const Color(0xFFFF6B9D),
               mode: 'pvai',
             ),
             const SizedBox(height: 20),
@@ -55,13 +55,13 @@ class TicTacToeCategoryScreen extends StatelessWidget {
               title: "Local PvP",
               description: "Two players, one device",
               icon: Icons.people_alt_rounded,
-              color: const Color(0xFF7C5CFC),
+              color: const Color(0xFF6C4FF8),
               mode: 'pvp',
             ),
             const SizedBox(height: 40),
             const Text(
               "Redesigned for a Premium Experience",
-              style: TextStyle(color: Colors.white24, fontSize: 12, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Color(0xFF9494B0), fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -124,15 +124,15 @@ class TicTacToeCategoryScreen extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Color(0xFF0F0F1A),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     description,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.5),
+                      color: Color(0xFF4A4A6A),
                     ),
                   ),
                 ],
@@ -141,7 +141,7 @@ class TicTacToeCategoryScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Color(0xFFF0F1F7),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.play_arrow_rounded, color: color),
@@ -161,9 +161,9 @@ class TicTacToeCategoryScreen extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: const BoxDecoration(
-            color: Color(0xFF13131A),
+            color: Color(0xFFFFFFFF),
             borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-            border: Border(top: BorderSide(color: Color(0xFF2A2A3D), width: 2)),
+            border: Border(top: BorderSide(color: Color(0xFFE2E2EF), width: 2)),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -173,7 +173,7 @@ class TicTacToeCategoryScreen extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: Color(0xFFE2E2EF),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -181,7 +181,7 @@ class TicTacToeCategoryScreen extends StatelessWidget {
                 const Text(
                   "AI Difficulty",
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFF0F0F1A),
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
@@ -190,7 +190,7 @@ class TicTacToeCategoryScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 const Text(
                   "Higher difficulty earns more XP",
-                  style: TextStyle(color: Colors.white54, fontSize: 14),
+                  style: TextStyle(color: Color(0xFF4A4A6A), fontSize: 14),
                 ),
                 const SizedBox(height: 32),
                 _DifficultyButton(
@@ -289,7 +289,7 @@ class _DifficultyButton extends StatelessWidget {
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                    style: const TextStyle(color: Color(0xFF4A4A6A), fontSize: 12),
                   ),
                 ],
               ),

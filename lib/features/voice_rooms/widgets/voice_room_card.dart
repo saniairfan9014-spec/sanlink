@@ -29,152 +29,113 @@ class VoiceRoomCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: GlassCard(
-        padding: const EdgeInsets.all(Spacing.base),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Room Cover Image DP Thumbnail
-                Container(
-                  width: 52,
-                  height: 52,
-                  margin: const EdgeInsets.only(right: Spacing.sm),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceAlt,
-                    borderRadius: BorderRadius.circular(Radii.md),
-                    border: Border.all(color: colors.border),
-                    image: DecorationImage(
-                      image: NetworkImage(
-                        roomImage != null && roomImage!.isNotEmpty
-                            ? roomImage!
-                            : 'https://images.unsplash.com/photo-1516280440614-37939bbacd6a?q=80&w=200',
-                      ),
-                      fit: BoxFit.cover,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          image: DecorationImage(
+            image: NetworkImage(
+              roomImage != null && roomImage!.isNotEmpty
+                  ? roomImage!
+                  : 'https://images.unsplash.com/photo-1516280440614-37939bbacd6a?q=80&w=400',
+            ),
+            fit: BoxFit.cover,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.2),
+                Colors.black.withOpacity(0.8),
+              ],
+            ),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Top row: LIVE badge and DP
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: colors.red.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text(
+                          'LIVE',
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    child: CircleAvatar(
+                      radius: 14,
+                      backgroundImage: NetworkImage(hostImage),
+                    ),
+                  ),
+                ],
+              ),
+              // Bottom: Room Name and Listeners
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: textTheme.titleMedium?.copyWith(
-                                color: colors.textPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: Spacing.sm),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: Spacing.sm,
-                              vertical: Spacing.xs,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(Radii.sm),
-                              border: Border.all(color: colors.red.withOpacity(0.3)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: Spacing.xs),
-                                Text(
-                                  'LIVE',
-                                  style: textTheme.labelSmall?.copyWith(
-                                    color: colors.red,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: Spacing.sm),
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 12,
-                            backgroundImage: NetworkImage(hostImage),
-                          ),
-                          const SizedBox(width: Spacing.xs),
-                          Expanded(
-                            child: Text(
-                              'Hosted by $hostName',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colors.textSecondary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      const Icon(Icons.headset, size: 12, color: Colors.white70),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$listenerCount',
+                        style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: Spacing.md),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.headset,
-                      size: 16,
-                      color: colors.textSecondary,
-                    ),
-                    const SizedBox(width: Spacing.xs),
-                    Text(
-                      '$listenerCount',
-                      style: textTheme.labelMedium?.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: Spacing.md),
-                    Icon(
-                      Icons.mic,
-                      size: 16,
-                      color: colors.textSecondary,
-                    ),
-                    const SizedBox(width: Spacing.xs),
-                    Text(
-                      '$speakerCount',
-                      style: textTheme.labelMedium?.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 14,
-                  color: colors.textMuted,
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

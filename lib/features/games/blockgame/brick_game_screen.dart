@@ -16,11 +16,11 @@ const double _kBrickRowH = 28;
 const int _kTickMs = 14; // ~71fps
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
-const _bg = Color(0xFF0A0A0F);
-const _primary = Color(0xFF7C5CFC);
-const _accent = Color(0xFF00E5FF);
-const _textP = Color(0xFFF0F0FF);
-const _textM = Color(0xFF44445A);
+const _bg = Color(0xFFF6F7FB);
+const _primary = Color(0xFF6C4FF8);
+const _accent = Color(0xFFFF6B9D);
+const _textP = Color(0xFF0F0F1A);
+const _textM = Color(0xFF9494B0);
 
 const _rowColors = [
   Color(0xFFFF4757), // row 0 – red
@@ -417,7 +417,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1A1A28)
+      ..color = const Color(0xFFE8E8F0)
       ..strokeWidth = 0.5;
     for (double x = 0; x < size.width; x += 40) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
@@ -509,9 +509,9 @@ class _PaddleWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           const BoxShadow(
-              color: Color(0x557C5CFC), blurRadius: 14, spreadRadius: 2),
+              color: Color(0x666C4FF8), blurRadius: 14, spreadRadius: 2),
           const BoxShadow(
-              color: Color(0x3300E5FF), blurRadius: 20, spreadRadius: 4),
+              color: Color(0x33FF6B9D), blurRadius: 20, spreadRadius: 4),
         ],
       ),
     );
@@ -806,9 +806,9 @@ class _GlowButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(50),
           boxShadow: const [
             BoxShadow(
-                color: Color(0x667C5CFC), blurRadius: 20, spreadRadius: 2),
+                color: Color(0x666C4FF8), blurRadius: 20, spreadRadius: 2),
             BoxShadow(
-                color: Color(0x3300E5FF), blurRadius: 30, spreadRadius: 4),
+                color: Color(0x33FF6B9D), blurRadius: 30, spreadRadius: 4),
           ],
         ),
         child: Text(

@@ -5,16 +5,16 @@ import 'package:sanlink/features/chat/services/chat_service.dart';
 import 'package:sanlink/widgets/profile_avatar.dart';
 
 class _C {
-  static const bg = Color(0xFF0A0A0F);
-  static const surface = Color(0xFF13131A);
-  static const surfaceAlt = Color(0xFF1C1C27);
-  static const border = Color(0xFF2A2A3D);
-  static const primary = Color(0xFF7C5CFC);
-  static const primaryGlow = Color(0x337C5CFC);
-  static const accent = Color(0xFF00E5FF);
-  static const textPrimary = Color(0xFFF0F0FF);
-  static const textSecondary = Color(0xFF8888AA);
-  static const textMuted = Color(0xFF44445A);
+  static const bg = Color(0xFFF6F7FB);
+  static const surface = Color(0xFFFFFFFF);
+  static const surfaceAlt = Color(0xFFF0F1F7);
+  static const border = Color(0xFFE2E2EF);
+  static const primary = Color(0xFF6C4FF8);
+  static const primaryGlow = Color(0x1F6C4FF8);
+  static const accent = Color(0xFFFF6B9D);
+  static const textPrimary = Color(0xFF0F0F1A);
+  static const textSecondary = Color(0xFF4A4A6A);
+  static const textMuted = Color(0xFF9494B0);
   static const green = Color(0xFF00E676);
   static const red = Color(0xFFFF4757);
 }

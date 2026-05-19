@@ -8,7 +8,7 @@ class QuizCategoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: const Color(0xFFF6F7FB),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -21,7 +21,7 @@ class QuizCategoryScreen extends StatelessWidget {
                   IconButton(
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.arrow_back_ios_new,
-                        color: Colors.white),
+                        color: Color(0xFF0F0F1A)),
                   ),
                   const SizedBox(width: 8),
                   const Column(
@@ -29,12 +29,12 @@ class QuizCategoryScreen extends StatelessWidget {
                     children: [
                       Text("Quiz Challenge",
                           style: TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF0F0F1A),
                               fontSize: 24,
                               fontWeight: FontWeight.bold)),
                       Text("Pick a category to begin",
                           style:
-                              TextStyle(color: Colors.white54, fontSize: 14)),
+                              TextStyle(color: Color(0xFF4A4A6A), fontSize: 14)),
                     ],
                   ),
                 ],
@@ -83,9 +83,9 @@ class QuizCategoryScreen extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: const BoxDecoration(
-            color: Color(0xFF1A1A2E),
+            color: Color(0xFFFFFFFF),
             borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-            border: Border(top: BorderSide(color: Color(0xFF3A3A5C), width: 2)),
+            border: Border(top: BorderSide(color: Color(0xFFE2E2EF), width: 2)),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -95,7 +95,7 @@ class QuizCategoryScreen extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: Color(0xFFE2E2EF),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -103,7 +103,7 @@ class QuizCategoryScreen extends StatelessWidget {
                 Text(
                   "Select Difficulty",
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Color(0xFF0F0F1A),
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
@@ -112,7 +112,7 @@ class QuizCategoryScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 const Text(
                   "Challenge yourself and earn more XP",
-                  style: TextStyle(color: Colors.white54, fontSize: 14),
+                  style: TextStyle(color: Color(0xFF4A4A6A), fontSize: 14),
                 ),
                 const SizedBox(height: 32),
                 _DifficultyButton(
@@ -214,7 +214,7 @@ class _DifficultyButton extends StatelessWidget {
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                    style: const TextStyle(color: Color(0xFF4A4A6A), fontSize: 12),
                   ),
                 ],
               ),

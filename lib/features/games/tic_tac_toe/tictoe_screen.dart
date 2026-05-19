@@ -5,16 +5,16 @@ import 'game_logic.dart';
 import '../services/game_service.dart';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
-const _bg = Color(0xFF0A0A0F);
-const _surface = Color(0xFF13131A);
-const _surfaceAlt = Color(0xFF1C1C27);
-const _border = Color(0xFF2A2A3D);
-const _primary = Color(0xFF7C5CFC);
-const _accent = Color(0xFF00E5FF);
-const _xColor = Color(0xFF7C5CFC);
-const _oColor = Color(0xFF00E5FF);
-const _textP = Color(0xFFF0F0FF);
-const _textM = Color(0xFF44445A);
+const _bg = Color(0xFFF6F7FB);
+const _surface = Color(0xFFFFFFFF);
+const _surfaceAlt = Color(0xFFF0F1F7);
+const _border = Color(0xFFE2E2EF);
+const _primary = Color(0xFF6C4FF8);
+const _accent = Color(0xFFFF6B9D);
+const _xColor = Color(0xFF6C4FF8);
+const _oColor = Color(0xFFFF6B9D);
+const _textP = Color(0xFF0F0F1A);
+const _textM = Color(0xFF9494B0);
 const _winGlow = Color(0xFF00E676);
 
 class TicTacToeScreen extends StatefulWidget {
@@ -160,12 +160,12 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> with TickerProviderSt
       appBar: AppBar(
         title: Text(
           mode == 'pvai' ? "AI Challenge" : "PvP Battle",
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(color: _textP, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _textP),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -331,7 +331,7 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> with TickerProviderSt
               label: const Text("RESET ROUND"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primary,
-                foregroundColor: Colors.white,
+                foregroundColor: Colors.white,  // Keep white on primary bg button
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),

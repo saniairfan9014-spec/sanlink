@@ -7,11 +7,11 @@ class BrickCategoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: const Color(0xFFF6F7FB),
       appBar: AppBar(
         title: const Text(
           "Brick Breaker",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F0F1A)),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -27,7 +27,7 @@ class BrickCategoryScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: Color(0xFF0F0F1A),
                 letterSpacing: 1.2,
               ),
             ),
@@ -37,7 +37,7 @@ class BrickCategoryScreen extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white60,
+                color: Color(0xFF4A4A6A),
               ),
             ),
             const SizedBox(height: 48),
@@ -134,7 +134,7 @@ class BrickCategoryScreen extends StatelessWidget {
                     description,
                     style: const TextStyle(
                       fontSize: 14,
-                      color: Colors.white70,
+                      color: Color(0xFF4A4A6A),
                     ),
                   ),
                 ],

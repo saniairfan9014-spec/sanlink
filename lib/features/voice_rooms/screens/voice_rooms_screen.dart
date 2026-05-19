@@ -325,22 +325,31 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
           if (rooms.isEmpty)
             _buildEmptyState(colors, textTheme)
           else
-            ...rooms.map((room) {
-              final hostProfileAsync = ref.watch(roomHostProfileProvider(room.hostId));
-              final hostName = hostProfileAsync.when(
-                data: (profile) => profile?['name'] as String? ?? 'Host',
-                loading: () => 'Loading...',
-                error: (_, __) => 'Host',
-              );
-              final hostImage = hostProfileAsync.when(
-                data: (profile) => (profile?['profile_pic'] ?? profile?['avatar_url']) as String? ?? 'https://i.pravatar.cc/150?u=${room.hostId}',
-                loading: () => 'https://i.pravatar.cc/150?u=${room.hostId}',
-                error: (_, __) => 'https://i.pravatar.cc/150?u=${room.hostId}',
-              );
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.0,
+              ),
+              itemCount: rooms.length,
+              itemBuilder: (context, index) {
+                final room = rooms[index];
+                final hostProfileAsync = ref.watch(roomHostProfileProvider(room.hostId));
+                final hostName = hostProfileAsync.when(
+                  data: (profile) => profile?['name'] as String? ?? 'Host',
+                  loading: () => 'Loading...',
+                  error: (_, __) => 'Host',
+                );
+                final hostImage = hostProfileAsync.when(
+                  data: (profile) => (profile?['profile_pic'] ?? profile?['avatar_url']) as String? ?? 'https://i.pravatar.cc/150?u=${room.hostId}',
+                  loading: () => 'https://i.pravatar.cc/150?u=${room.hostId}',
+                  error: (_, __) => 'https://i.pravatar.cc/150?u=${room.hostId}',
+                );
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: VoiceRoomCard(
+                return VoiceRoomCard(
                   title: room.title,
                   hostName: hostName,
                   hostImage: hostImage,
@@ -358,9 +367,9 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen>
                       ),
                     );
                   },
-                ),
-              );
-            }),
+                );
+              },
+            ),
         ],
       ),
     );

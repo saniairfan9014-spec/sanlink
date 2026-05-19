@@ -16,16 +16,19 @@ void _log(String tag, String msg) => debugPrint("[$tag] $msg");
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────
 class _C {
-  static const bg            = Color(0xFF0A0A0F);
-  static const surface       = Color(0xFF13131A);
-  static const surfaceAlt    = Color(0xFF1C1C27);
-  static const border        = Color(0xFF2A2A3D);
-  static const primary       = Color(0xFF7C5CFC);
-  static const primaryGlow   = Color(0x447C5CFC);
-  static const accent        = Color(0xFF00E5FF);
-  static const textPrimary   = Color(0xFFF0F0FF);
-  static const textSecondary = Color(0xFF8888AA);
-  static const textMuted     = Color(0xFF44445A);
+
+
+
+  static const bg         = Color(0xFFF5F6FC);
+  static const surface    = Color(0xFFE7EAF4);
+  static const surfaceAlt = Color(0xFFD8DEED);
+  static const border     = Color(0xFFBCC5DA);
+  static const primary       = Color(0xFF6C4FF8);
+  static const primaryGlow   = Color(0x1F6C4FF8);
+  static const accent        = Color(0xFFFF6B9D);
+  static const textPrimary   = Color(0xFF0F0F1A);
+  static const textSecondary = Color(0xFF4A4A6A);
+  static const textMuted     = Color(0xFF9494B0);
   static const green         = Color(0xFF00E676);
 }
 
@@ -417,7 +420,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     Text(
                       name,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: _C.textPrimary,
                         fontSize: 26,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.5,
@@ -589,7 +592,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           const Text(
                             "POSTS COLLECTION",
                             style: TextStyle(
-                              color: Colors.white,
+                              color: _C.textPrimary,
                               fontSize: 12,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1,
@@ -725,7 +728,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         children: [
                           Text(gameName,
                               style: const TextStyle(
-                                  color: Colors.white,
+                                  color: _C.textPrimary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold),
                               overflow: TextOverflow.ellipsis),

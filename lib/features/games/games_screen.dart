@@ -211,7 +211,7 @@ class _XPStatusSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(Radii.xxl),
         border: Border.all(color: colors.border),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10))
+          BoxShadow(color: colors.primaryGlow.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 10))
         ],
       ),
       child: Row(
