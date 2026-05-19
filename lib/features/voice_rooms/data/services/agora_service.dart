@@ -157,6 +157,16 @@ class AgoraService {
     }
   }
 
+  Future<void> muteAllRemoteAudio(bool mute) async {
+    if (_engine == null) return;
+    try {
+      await _engine!.muteAllRemoteAudioStreams(mute);
+      print('Agora remote audio streams muted: $mute');
+    } catch (e) {
+      print('Error setting remote audio mute state: $e');
+    }
+  }
+
   Future<void> changeRole(RoomRole role) async {
     if (_engine == null) return;
     try {

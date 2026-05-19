@@ -152,21 +152,21 @@ class _QuizScreenState extends State<QuizScreen>
   }
 
   Color _optionColor(int index) {
-    if (!answered) return const Color(0xFF1E1E2E);
+    if (!answered) return const Color(0xFFFFFFFF);
     final correct = questions[currentIndex].correctAnswerIndex;
     if (index == correct) return Colors.green.shade700;
     if (index == selectedOptionIndex && index != correct) {
       return Colors.red.shade700;
     }
-    return const Color(0xFF1E1E2E);
+    return const Color(0xFFFFFFFF);
   }
 
   Color _optionBorder(int index) {
-    if (!answered) return const Color(0xFF3A3A5C);
+    if (!answered) return const Color(0xFFE2E2EF);
     final correct = questions[currentIndex].correctAnswerIndex;
     if (index == correct) return Colors.greenAccent;
     if (index == selectedOptionIndex && index != correct) return Colors.redAccent;
-    return const Color(0xFF3A3A5C);
+    return const Color(0xFFE2E2EF);
   }
 
   Icon? _trailingIcon(int index) {
@@ -185,15 +185,15 @@ class _QuizScreenState extends State<QuizScreen>
   Widget build(BuildContext context) {
     if (questions.isEmpty) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0F0F1A),
+        backgroundColor: const Color(0xFFF6F7FB),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.quiz, color: Colors.white38, size: 60),
+              const Icon(Icons.quiz, color: Color(0xFF9494B0), size: 60),
               const SizedBox(height: 16),
               Text("No questions in ${widget.selectedCategory}",
-                  style: const TextStyle(color: Colors.white54)),
+                  style: const TextStyle(color: Color(0xFF4A4A6A))),
             ],
           ),
         ),
@@ -209,7 +209,7 @@ class _QuizScreenState extends State<QuizScreen>
             : Colors.redAccent;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: const Color(0xFFF6F7FB),
       body: SafeArea(
         child: Column(
           children: [
@@ -220,7 +220,7 @@ class _QuizScreenState extends State<QuizScreen>
                 children: [
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: Colors.white54),
+                    icon: const Icon(Icons.close, color: Color(0xFF4A4A6A)),
                   ),
                   Expanded(
                     child: Column(
@@ -228,7 +228,7 @@ class _QuizScreenState extends State<QuizScreen>
                         Text(
                           widget.selectedCategory,
                           style: const TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF0F0F1A),
                               fontSize: 16,
                               fontWeight: FontWeight.w600),
                         ),
@@ -237,9 +237,9 @@ class _QuizScreenState extends State<QuizScreen>
                           borderRadius: BorderRadius.circular(10),
                           child: LinearProgressIndicator(
                             value: progress,
-                            backgroundColor: const Color(0xFF2A2A3E),
+                            backgroundColor: const Color(0xFFE2E2EF),
                             valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color(0xFF7C6FFF)),
+                                Color(0xFF6C4FF8)),
                             minHeight: 6,
                           ),
                         ),
@@ -256,7 +256,7 @@ class _QuizScreenState extends State<QuizScreen>
                       children: [
                         CircularProgressIndicator(
                           value: _timeLeft / widget.timerDuration,
-                          backgroundColor: const Color(0xFF2A2A3E),
+                          backgroundColor: const Color(0xFFE2E2EF),
                           valueColor:
                               AlwaysStoppedAnimation<Color>(timerColor),
                           strokeWidth: 3,
@@ -285,23 +285,23 @@ class _QuizScreenState extends State<QuizScreen>
                 children: [
                   Text(
                     "Question ${currentIndex + 1}/${questions.length}",
-                    style: const TextStyle(color: Colors.white54, fontSize: 13),
+                    style: const TextStyle(color: Color(0xFF4A4A6A), fontSize: 13),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF7C6FFF).withOpacity(0.2),
+                      color: const Color(0xFF6C4FF8).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
                         const Icon(Icons.star,
-                            color: Color(0xFF7C6FFF), size: 14),
+                            color: Color(0xFF6C4FF8), size: 14),
                         const SizedBox(width: 4),
                         Text("Score: $score",
                             style: const TextStyle(
-                                color: Color(0xFF7C6FFF),
+                                color: Color(0xFF6C4FF8),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13)),
                       ],
@@ -329,18 +329,18 @@ class _QuizScreenState extends State<QuizScreen>
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF1E1E3F), Color(0xFF2A2A50)],
+                              colors: [Color(0xFFFFFFFF), Color(0xFFF0F1F7)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                                color: const Color(0xFF3A3A6A), width: 1),
+                                color: const Color(0xFFE2E2EF), width: 1),
                           ),
                           child: Text(
                             q.questionText,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF0F0F1A),
                               fontSize: 19,
                               fontWeight: FontWeight.w600,
                               height: 1.5,
@@ -378,7 +378,7 @@ class _QuizScreenState extends State<QuizScreen>
                 child: TextButton(
                   onPressed: _autoSkip,
                   child: const Text("Skip →",
-                      style: TextStyle(color: Colors.white38)),
+                      style: TextStyle(color: Color(0xFF9494B0))),
                 ),
               )
             else
@@ -446,7 +446,7 @@ class _OptionTile extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(color: Colors.white, fontSize: 15),
+                style: const TextStyle(color: Color(0xFF0F0F1A), fontSize: 15),
               ),
             ),
             if (trailingIcon != null) trailingIcon!,
@@ -492,7 +492,7 @@ class _ResultScreen extends StatelessWidget {
     final pct = score / total;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: const Color(0xFFF6F7FB),
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -505,14 +505,14 @@ class _ResultScreen extends StatelessWidget {
                 Text(
                   _message,
                   style: const TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF0F0F1A),
                       fontSize: 28,
                       fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   category,
-                  style: const TextStyle(color: Colors.white54, fontSize: 16),
+                  style: const TextStyle(color: Color(0xFF4A4A6A), fontSize: 16),
                 ),
                 const SizedBox(height: 40),
 
@@ -526,7 +526,7 @@ class _ResultScreen extends StatelessWidget {
                       CircularProgressIndicator(
                         value: pct,
                         strokeWidth: 10,
-                        backgroundColor: const Color(0xFF2A2A3E),
+                        backgroundColor: const Color(0xFFE2E2EF),
                         valueColor: AlwaysStoppedAnimation<Color>(
                           pct >= 0.7
                               ? Colors.greenAccent
@@ -542,14 +542,14 @@ class _ResultScreen extends StatelessWidget {
                             Text(
                               "$score",
                               style: const TextStyle(
-                                  color: Colors.white,
+                                  color: Color(0xFF0F0F1A),
                                   fontSize: 42,
                                   fontWeight: FontWeight.bold),
                             ),
                             Text(
                               "/ $total",
                               style: const TextStyle(
-                                  color: Colors.white54, fontSize: 16),
+                                  color: Color(0xFF4A4A6A), fontSize: 16),
                             ),
                           ],
                         ),
@@ -566,13 +566,13 @@ class _ResultScreen extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: onRestart,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C6FFF),
+                      backgroundColor: const Color(0xFF6C4FF8),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),
                       elevation: 8,
-                      shadowColor: const Color(0xFF7C6FFF).withOpacity(0.5),
+                      shadowColor: const Color(0xFF6C4FF8).withOpacity(0.5),
                     ),
                     child: const Text("Play Again",
                         style: TextStyle(
@@ -587,8 +587,8 @@ class _ResultScreen extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white54,
-                      side: const BorderSide(color: Color(0xFF3A3A5C)),
+                      foregroundColor: Color(0xFF4A4A6A),
+                      side: const BorderSide(color: Color(0xFFE2E2EF)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),

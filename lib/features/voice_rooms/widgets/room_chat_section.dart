@@ -9,8 +9,12 @@ class RoomChatSection extends StatefulWidget {
   final String currentUserId;
   final ValueChanged<String> onSendMessage;
   final Map<String, Map<String, dynamic>> userProfiles;
-  
   final bool isChatBanned;
+  final bool isFullHeight;
+  final bool isMuted;
+  final bool isSpeakerMuted;
+  final VoidCallback? onMuteToggle;
+  final VoidCallback? onSpeakerMuteToggle;
   
   const RoomChatSection({
     super.key,
@@ -20,6 +24,11 @@ class RoomChatSection extends StatefulWidget {
     required this.onSendMessage,
     this.userProfiles = const {},
     this.isChatBanned = false,
+    this.isFullHeight = false,
+    this.isMuted = false,
+    this.isSpeakerMuted = false,
+    this.onMuteToggle,
+    this.onSpeakerMuteToggle,
   });
 
   @override
@@ -80,13 +89,15 @@ class _RoomChatSectionState extends State<RoomChatSection> {
     final textTheme = context.textTheme;
 
     return Container(
-      height: widget.height,
+      height: widget.isFullHeight ? null : widget.height,
       decoration: BoxDecoration(
         color: colors.surfaceAlt.withOpacity(0.95),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(Radii.xl)),
+        borderRadius: widget.isFullHeight 
+            ? const BorderRadius.vertical(top: Radius.circular(24))
+            : const BorderRadius.vertical(top: Radius.circular(Radii.xl)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),
@@ -94,18 +105,19 @@ class _RoomChatSectionState extends State<RoomChatSection> {
       ),
       child: Column(
         children: [
-          // Handle bar
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.sm),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.border,
-                borderRadius: BorderRadius.circular(Radii.pill),
+          // Handle bar (only show if not full height/integrated)
+          if (!widget.isFullHeight)
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.sm),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.border,
+                  borderRadius: BorderRadius.circular(Radii.pill),
+                ),
               ),
             ),
-          ),
           
           // Messages List
           Expanded(
@@ -184,13 +196,13 @@ class _RoomChatSectionState extends State<RoomChatSection> {
             ),
           ),
           
-          // Input Area
+          // Input Area (Compact & Modern bottom action bar)
           Container(
-            padding: const EdgeInsets.only(
-              left: Spacing.base,
-              right: Spacing.xs,
-              top: Spacing.sm,
-              bottom: Spacing.md, 
+            padding: EdgeInsets.only(
+              left: 8,
+              right: 8,
+              top: 6,
+              bottom: 6 + MediaQuery.of(context).padding.bottom, 
             ),
             decoration: BoxDecoration(
               color: colors.surface,
@@ -198,23 +210,113 @@ class _RoomChatSectionState extends State<RoomChatSection> {
             ),
             child: Row(
               children: [
+                // Integrated Microphone Mute/Unmute
+                if (widget.onMuteToggle != null) ...[
+                  GestureDetector(
+                    onTap: widget.onMuteToggle,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: widget.isMuted 
+                            ? colors.surfaceAlt 
+                            : colors.primary.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: widget.isMuted ? colors.border : colors.primary.withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        widget.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                        color: widget.isMuted ? colors.textSecondary : colors.primary,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                
+                // Integrated Room Speaker Mute/Unmute
+                if (widget.onSpeakerMuteToggle != null) ...[
+                  GestureDetector(
+                    onTap: widget.onSpeakerMuteToggle,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: widget.isSpeakerMuted 
+                            ? colors.surfaceAlt 
+                            : colors.primary.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: widget.isSpeakerMuted ? colors.border : colors.primary.withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        widget.isSpeakerMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                        color: widget.isSpeakerMuted ? colors.textSecondary : colors.primary,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                
+                // Rounded Chat Input Field
                 Expanded(
                   child: ThemedTextField(
                     controller: _controller,
                     hintText: widget.isChatBanned
                         ? 'Banned from chatting by host'
-                        : 'Type a message...',
+                        : 'Say something...',
                     maxLines: 1,
                     onSubmitted: (_) => _handleSend(),
                     enabled: !widget.isChatBanned,
                   ),
                 ),
-                const SizedBox(width: Spacing.xs),
+                const SizedBox(width: 6),
+
+                // Music Icon
+                GestureDetector(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Music feature coming soon!', style: TextStyle(color: colors.textPrimary)),
+                        backgroundColor: colors.surface,
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: colors.surfaceAlt,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: colors.border,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.music_note_rounded,
+                      color: colors.primary,
+                      size: 18,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+
                 IconButton(
                   onPressed: widget.isChatBanned ? null : _handleSend,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                   icon: Icon(
                     Icons.send_rounded,
                     color: widget.isChatBanned ? colors.textMuted : colors.primary,
+                    size: 20,
                   ),
                 ),
               ],
